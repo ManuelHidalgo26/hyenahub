@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_Preview__preview_start",
+      "Bash(ls /c/Users/Hidal/OneDrive/Escritorio/Proyectos/TrainerHub/frontend/src/app/\\\\\\(dashboard\\\\\\)/admin)",
+      "Bash(cat /c/Users/Hidal/OneDrive/Escritorio/Proyectos/TrainerHub/frontend/src/app/\\\\\\(dashboard\\\\\\)/trainer/page.tsx)",
+      "Bash(cat /c/Users/Hidal/OneDrive/Escritorio/Proyectos/TrainerHub/frontend/src/app/\\\\\\(dashboard\\\\\\)/client/page.tsx)"
+    ]
+  }
+}

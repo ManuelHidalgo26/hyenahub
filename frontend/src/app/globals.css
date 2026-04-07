@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Base ───────────────────────────────────────────────────────────────── */
+html { scroll-behavior: smooth; }
+
+body {
+  background-color: #09090b;  /* zinc-950 */
+  color: #fafafa;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────────────────── */
+::-webkit-scrollbar              { width: 4px; height: 4px; }
+::-webkit-scrollbar-track        { background: transparent; }
+::-webkit-scrollbar-thumb        { background: rgba(249,115,22,0.3); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover  { background: rgba(249,115,22,0.55); }
+
+/* ─── Utilities ──────────────────────────────────────────────────────────── */
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent;
+  }
+
+  .card-dark {
+    background: rgba(24, 24, 27, 0.85);     /* zinc-900/85 */
+    border: 1px solid rgba(255,255,255,0.06);
+    backdrop-filter: blur(14px);
+  }
+
+  .input-dark {
+    @apply w-full bg-zinc-800/70 border border-zinc-700/60 text-white placeholder-zinc-500
+           rounded-xl px-4 py-3 text-sm
+           focus:outline-none focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/15
+           transition-all duration-200;
+  }
+
+  .btn-primary {
+    @apply relative inline-flex items-center justify-center gap-2
+           px-5 py-2.5 rounded-xl text-sm font-semibold text-white
+           bg-gradient-to-r from-orange-500 to-amber-500
+           hover:from-orange-600 hover:to-amber-600
+           shadow-lg shadow-orange-500/25
+           transition-all duration-200
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply px-4 py-2 rounded-xl text-sm font-medium text-zinc-400
+           hover:text-white hover:bg-white/5
+           border border-transparent hover:border-white/10
+           transition-all duration-200;
+  }
+}
+
+/* ─── Animations ─────────────────────────────────────────────────────────── */
+@keyframes checkBounce {
+  0%   { transform: scale(0) rotate(-10deg); opacity: 0; }
+  60%  { transform: scale(1.25) rotate(5deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+@keyframes progressFill {
+  from { transform: scaleX(0); transform-origin: left; }
+  to   { transform: scaleX(1); transform-origin: left; }
+}
+
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 12px rgba(249,115,22,0.3); }
+  50%       { box-shadow: 0 0 28px rgba(249,115,22,0.6); }
+}
+
+.check-appear   { animation: checkBounce 0.25s cubic-bezier(0.175,0.885,0.32,1.275) both; }
+.progress-fill  { animation: progressFill 0.6s cubic-bezier(0.4,0,0.2,1) both; }
+.glow-orange    { animation: glowPulse 2s ease-in-out infinite; }
