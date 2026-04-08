@@ -14,6 +14,20 @@ function getYouTubeId(url: string): string | null {
   return m ? m[1] : null;
 }
 
+function getVimeoId(url: string): string | null {
+  const m = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+  return m ? m[1] : null;
+}
+
+function getGoogleDriveId(url: string): string | null {
+  const m = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+  return m ? m[1] : null;
+}
+
+function isDirectVideo(url: string): boolean {
+  return /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url);
+}
+
 function VideoEmbed({ url }: { url: string }) {
   const ytId = getYouTubeId(url);
   if (ytId) {
@@ -26,7 +40,52 @@ function VideoEmbed({ url }: { url: string }) {
       />
     );
   }
-  return <video src={url} controls className="w-full aspect-video rounded-xl bg-zinc-950" />;
+
+  const vimeoId = getVimeoId(url);
+  if (vimeoId) {
+    return (
+      <iframe
+        src={`https://player.vimeo.com/video/${vimeoId}`}
+        className="w-full aspect-video rounded-xl"
+        allow="autoplay; fullscreen; picture-in-picture"
+        allowFullScreen
+      />
+    );
+  }
+
+  const driveId = getGoogleDriveId(url);
+  if (driveId) {
+    return (
+      <iframe
+        src={`https://drive.google.com/file/d/${driveId}/preview`}
+        className="w-full aspect-video rounded-xl"
+        allow="autoplay"
+        allowFullScreen
+      />
+    );
+  }
+
+  if (isDirectVideo(url)) {
+    return (
+      <video src={url} controls className="w-full aspect-video rounded-xl bg-zinc-950" />
+    );
+  }
+
+  // Unknown URL — open externally
+  return (
+    <div className="w-full aspect-video rounded-xl bg-zinc-900 border border-white/[0.06] flex flex-col items-center justify-center gap-4">
+      <svg className="w-10 h-10 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.723v6.554a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
+      </svg>
+      <a href={url} target="_blank" rel="noopener noreferrer"
+        className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-xl transition-colors">
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+        </svg>
+        Abrir video
+      </a>
+    </div>
+  );
 }
 
 export default function ClientVideosPage() {
@@ -171,6 +230,7 @@ export default function ClientVideosPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {groupVideos.map((v, i) => {
                   const ytId = getYouTubeId(v.videoUrl);
+                  const vimeoId = getVimeoId(v.videoUrl);
                   return (
                     <div key={v.id}
                       className="group bg-zinc-900 border border-white/[0.06] hover:border-orange-500/25 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-[0_8px_32px_rgba(249,115,22,0.1)] cursor-pointer animate-slide-up"
@@ -182,6 +242,12 @@ export default function ClientVideosPage() {
                         {ytId ? (
                           <img
                             src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`}
+                            alt={v.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                        ) : vimeoId ? (
+                          <img
+                            src={`https://vumbnail.com/${vimeoId}.jpg`}
                             alt={v.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           />
