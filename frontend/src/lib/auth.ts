@@ -73,5 +73,19 @@ export const authOptions: NextAuthOptions = {
     maxAge: 30 * 24 * 60 * 60,
   },
 
+  // Cookie renamed to v2 — forces all users with old oversized cookies (494 error)
+  // to re-authenticate and receive a clean, lightweight JWT without base64 avatars.
+  cookies: {
+    sessionToken: {
+      name: "next-auth.session-token-v2",
+      options: {
+        httpOnly: true,
+        sameSite: "lax" as const,
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+  },
+
   secret: process.env.NEXTAUTH_SECRET,
 };
