@@ -66,7 +66,7 @@ export async function PATCH(req: NextRequest) {
         {
           success: false,
           error:
-            parsed.error.errors[0]?.message || "Imagen inválida",
+            parsed.error.issues[0]?.message || "Imagen inválida",
         },
         { status: 400 }
       );
