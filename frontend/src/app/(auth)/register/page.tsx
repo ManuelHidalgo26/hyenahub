@@ -80,7 +80,7 @@ export default function RegisterPage() {
       const body: Record<string, string> = { name, email, password, role: role! };
       if (role === "CLIENT") body.trainerId = trainerId;
 
-      const res = await fetch(`${API}/auth/register`, {
+      const res = await fetch(`${API}/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
