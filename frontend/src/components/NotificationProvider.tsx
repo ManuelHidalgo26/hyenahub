@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { getSocket, disconnectSocket } from "@/lib/socket";
+import { getPusherClient } from "@/lib/pusher-client";
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 export type ToastType = "success" | "info" | "warning" | "fire";
@@ -50,17 +50,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     timers.current.set(id, timer);
   }, [removeToast]);
 
-  /* ── Socket connection ──────────────────────────────────────────────────── */
+  /* ── Pusher connection ──────────────────────────────────────────────────── */
   useEffect(() => {
-    if (!session?.user?.id) return;
+    const userId = session?.user?.id;
+    if (!userId) return;
 
-    const socket = getSocket(session.user.accessToken);
-    if (!socket.connected) socket.connect();
-
-    socket.emit("register", session.user.id);
+    const pusher = getPusherClient();
+    const channel = pusher.subscribe(`private-user-${userId}`);
 
     // Trainer receives this when a client completes their full session
-    socket.on("session:completed", (data: { clientName: string; message: string }) => {
+    channel.bind("session.completed", (data: { clientName: string; message: string }) => {
       addToast({
         type: "fire",
         title: "¡Sesión completada! 🔥",
@@ -69,20 +68,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     });
 
     // Trainer receives individual exercise completions
-    socket.on("exercise:completed", (data: { exerciseId: string }) => {
-      void data; // we don't show toasts per exercise — only per session
-    });
-
-    // Client: confirmation when session is done (from own toggle)
-    socket.on("session:confirmed", (data: { message: string }) => {
-      addToast({ type: "success", title: "¡Bien hecho!", message: data.message });
+    channel.bind("exercise.completed", (_data: { exerciseId: string }) => {
+      // we don't show toasts per exercise — only per session
     });
 
     return () => {
-      socket.off("session:completed");
-      socket.off("exercise:completed");
-      socket.off("session:confirmed");
-      disconnectSocket();
+      pusher.unsubscribe(`private-user-${userId}`);
     };
   }, [session?.user?.id, addToast]);
 

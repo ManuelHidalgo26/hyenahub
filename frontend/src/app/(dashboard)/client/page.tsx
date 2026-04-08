@@ -3,7 +3,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useSession } from "next-auth/react";
 import api from "@/lib/api";
-import { getSocket } from "@/lib/socket";
 import { useNotifications } from "@/components/NotificationProvider";
 import { ErrorBanner } from "@/components/ErrorBanner";
 
@@ -379,17 +378,9 @@ export default function ClientDashboard() {
       const current = next[0];
       if (current) {
         const allDone = current.exercises.every(e => e.completed);
-        const trainerProfileId = current.client?.trainerId ?? "";
 
         if (allDone && !sessionFiredRef.current) {
           sessionFiredRef.current = true;
-          const socket = getSocket();
-          if (!socket.connected) socket.connect();
-          socket.emit("session:complete", {
-            clientId:   session?.user?.profileId,
-            clientName: session?.user?.name,
-            trainerId:  trainerProfileId,
-          });
           addToast({
             type: "success",
             title: "¡Semana completada! 🏆",
@@ -401,14 +392,6 @@ export default function ClientDashboard() {
       return next;
     });
 
-    const trainerProfileId = routines[0]?.client?.trainerId ?? "";
-    const socket = getSocket();
-    if (!socket.connected) socket.connect();
-    socket.emit("exercise:complete", {
-      exerciseId: updated.id,
-      routineId:  routines[0]?.id,
-      trainerId:  trainerProfileId,
-    });
   }
 
   function handleFeedbackSaved(routineId: string, fb: WeeklyFeedback) {

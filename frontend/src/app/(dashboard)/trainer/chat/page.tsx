@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import api from "@/lib/api";
-import { getSocket } from "@/lib/socket";
+import { getPusherClient } from "@/lib/pusher-client";
 
 interface ClientEntry { id: string; user: { id: string; name: string; email: string; } }
 interface Message { id: string; senderId: string; body: string; createdAt: string; }
@@ -26,6 +26,7 @@ export default function TrainerChatPage() {
   const [loadMsgs, setLoadMsgs] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const myId = session?.user?.id;
+  const selectedRef = useRef<ClientEntry | null>(null);
 
   useEffect(() => {
     api.get("/trainer/clients")
@@ -33,19 +34,26 @@ export default function TrainerChatPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Register socket
+  // Keep selectedRef in sync so Pusher callback always reads the latest selected client
+  useEffect(() => {
+    selectedRef.current = selected;
+  }, [selected]);
+
+  // Pusher: subscribe to trainer's private channel for incoming messages
   useEffect(() => {
     if (!myId) return;
-    const socket = getSocket();
-    if (!socket.connected) { socket.connect(); socket.emit("register", myId); }
-    function onMessage(msg: Message) {
-      if (selected && (msg.senderId === selected.user.id || msg.senderId === myId)) {
+    const pusher = getPusherClient();
+    const channel = pusher.subscribe(`private-user-${myId}`);
+    channel.bind("message.new", (msg: Message) => {
+      const currentSelected = selectedRef.current;
+      if (currentSelected && (msg.senderId === currentSelected.user.id || msg.senderId === myId)) {
         setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
       }
-    }
-    socket.on("chat:message", onMessage);
-    return () => { socket.off("chat:message", onMessage); };
-  }, [myId, selected]);
+    });
+    return () => {
+      pusher.unsubscribe(`private-user-${myId}`);
+    };
+  }, [myId]);
 
   // Load conversation when a client is selected
   useEffect(() => {
@@ -60,12 +68,12 @@ export default function TrainerChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  function sendMessage(e: React.FormEvent) {
+  async function sendMessage(e: React.FormEvent) {
     e.preventDefault();
     if (!input.trim() || !selected || !myId) return;
-    const socket = getSocket();
-    socket.emit("chat:send", { senderId: myId, receiverId: selected.user.id, body: input.trim() });
+    const body = input.trim();
     setInput("");
+    await api.post(`/messages/${selected.user.id}`, { body });
   }
 
   return (

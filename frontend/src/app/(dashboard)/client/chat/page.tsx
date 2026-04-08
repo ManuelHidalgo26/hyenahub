@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import api from "@/lib/api";
-import { getSocket } from "@/lib/socket";
+import { getPusherClient } from "@/lib/pusher-client";
 import { ErrorBanner } from "@/components/ErrorBanner";
 
 interface Message { id: string; senderId: string; body: string; createdAt: string; read: boolean; }
@@ -49,19 +49,17 @@ export default function ClientChatPage() {
 
   useEffect(() => { load(); }, []);
 
-  // Socket: receive new messages
+  // Pusher: receive new messages
   useEffect(() => {
     if (!myId) return;
-    const socket = getSocket();
-    if (!socket.connected) {
-      socket.connect();
-      socket.emit("register", myId);
-    }
-    function onMessage(msg: Message) {
+    const pusher = getPusherClient();
+    const channel = pusher.subscribe(`private-user-${myId}`);
+    channel.bind("message.new", (msg: Message) => {
       setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
-    }
-    socket.on("chat:message", onMessage);
-    return () => { socket.off("chat:message", onMessage); };
+    });
+    return () => {
+      pusher.unsubscribe(`private-user-${myId}`);
+    };
   }, [myId]);
 
   // Scroll to bottom on new messages
@@ -69,12 +67,12 @@ export default function ClientChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  function sendMessage(e: React.FormEvent) {
+  async function sendMessage(e: React.FormEvent) {
     e.preventDefault();
     if (!input.trim() || !trainer || !myId) return;
-    const socket = getSocket();
-    socket.emit("chat:send", { senderId: myId, receiverId: trainer.user.id, body: input.trim() });
+    const body = input.trim();
     setInput("");
+    await api.post(`/messages/${trainer.user.id}`, { body });
   }
 
   if (fetchErr) return <ErrorBanner message={fetchErr} onRetry={load} />;
