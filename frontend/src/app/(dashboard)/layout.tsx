@@ -45,8 +45,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const role   = session?.user?.role as keyof typeof NAV | undefined;
   const links  = role ? NAV[role] ?? [] : [];
   const meta   = role ? ROLE_META[role] : null;
-  const name   = session?.user?.name ?? "";
-  const avatar = session?.user?.avatar;
+  const name    = session?.user?.name ?? "";
   const initial = name.charAt(0).toUpperCase();
 
   // Close user menu on outside click
@@ -62,14 +61,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const AvatarDisplay = ({ size = 8 }: { size?: number }) => (
     <div className={`w-${size} h-${size} rounded-full overflow-hidden ring-1 ring-orange-500/30 shrink-0`}>
-      {avatar ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={avatar} alt={name} className="w-full h-full object-cover" />
-      ) : (
-        <div className="w-full h-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white font-black" style={{ fontSize: size < 9 ? "0.65rem" : "0.75rem" }}>
-          {initial}
-        </div>
-      )}
+      <div className="w-full h-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white font-black" style={{ fontSize: size < 9 ? "0.65rem" : "0.75rem" }}>
+        {initial}
+      </div>
     </div>
   );
 

@@ -1,18 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import api from "@/lib/api";
 import { useNotifications } from "@/components/NotificationProvider";
 
 export default function SettingsPage() {
-  const { data: session, update } = useSession();
+  const { data: session } = useSession();
   const { addToast } = useNotifications();
-  const name    = session?.user?.name ?? "";
-  const email   = session?.user?.email ?? "";
-  const current = session?.user?.avatar ?? "";
+  const name  = session?.user?.name ?? "";
+  const email = session?.user?.email ?? "";
 
-  const [avatarUrl,  setAvatarUrl]  = useState(current);
+  const [avatarUrl,  setAvatarUrl]  = useState("");
+  // Load current avatar from API (not from JWT, avatar is too large for cookies)
+  useEffect(() => {
+    api.get("/profile").then(r => {
+      if (r.data?.data?.avatar) setAvatarUrl(r.data.data.avatar);
+    }).catch(() => {});
+  }, []);
+
   const [saving,     setSaving]     = useState(false);
   const [success,    setSuccess]    = useState(false);
   const [error,      setError]      = useState("");
@@ -23,7 +29,6 @@ export default function SettingsPage() {
     setSaving(true); setSuccess(false); setError("");
     try {
       await api.patch("/profile/avatar", { avatar: avatarUrl });
-      await update({ avatar: avatarUrl });
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
       addToast({ type: "success", title: "Perfil actualizado", message: "Tu foto de perfil fue guardada correctamente." });
