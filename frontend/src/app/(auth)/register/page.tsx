@@ -42,7 +42,7 @@ export default function RegisterPage() {
   useEffect(() => {
     if (role !== "CLIENT") return;
     setLoadingTrainers(true);
-    fetch(`${API}/auth/trainers`)
+    fetch(`${API}/trainers`)
       .then(r => r.json())
       .then(d => { if (d.success) setTrainers(d.data); })
       .catch(() => {})

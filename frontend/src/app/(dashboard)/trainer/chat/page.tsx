@@ -73,7 +73,28 @@ export default function TrainerChatPage() {
     if (!input.trim() || !selected || !myId) return;
     const body = input.trim();
     setInput("");
-    await api.post(`/messages/${selected.user.id}`, { body });
+
+    // Optimistic update — show message immediately
+    const tempId = `temp-${Date.now()}`;
+    const optimistic: Message = {
+      id: tempId,
+      senderId: myId,
+      body,
+      createdAt: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, optimistic]);
+
+    try {
+      const res = await api.post(`/messages/${selected.user.id}`, { body });
+      const confirmed: Message = res.data.data;
+      // Replace optimistic with confirmed message (Pusher echo will dedup)
+      setMessages(prev =>
+        prev.map(m => m.id === tempId ? confirmed : m)
+      );
+    } catch {
+      // Remove optimistic on failure
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+    }
   }
 
   return (
