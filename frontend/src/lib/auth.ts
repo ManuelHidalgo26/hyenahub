@@ -34,7 +34,6 @@ export const authOptions: NextAuthOptions = {
             name:      user.name,
             role:      user.role as Role,
             profileId,
-            avatar:    user.avatar ?? undefined,
           };
         } catch {
           return null;
@@ -49,10 +48,7 @@ export const authOptions: NextAuthOptions = {
         token.id        = user.id;
         token.role      = (user as { role: Role }).role;
         token.profileId = (user as { profileId: string }).profileId;
-        token.avatar    = (user as { avatar?: string }).avatar;
-      }
-      if (trigger === "update" && session?.avatar !== undefined) {
-        token.avatar = session.avatar;
+        // avatar is NOT stored in JWT — base64 images make the cookie too large (Vercel 494 error)
       }
       return token;
     },
@@ -62,7 +58,6 @@ export const authOptions: NextAuthOptions = {
         session.user.id        = token.id        as string;
         session.user.role      = token.role      as Role;
         session.user.profileId = token.profileId as string;
-        session.user.avatar    = token.avatar    as string | undefined;
       }
       return session;
     },
