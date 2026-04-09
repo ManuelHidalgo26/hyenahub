@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import api from "@/lib/api";
+import { useNotifications } from "@/components/NotificationProvider";
 import { getPusherClient } from "@/lib/pusher-client";
 
 interface ClientEntry { id: string; user: { id: string; name: string; email: string; } }
@@ -27,6 +28,8 @@ export default function TrainerChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const myId = session?.user?.id;
   const selectedRef = useRef<ClientEntry | null>(null);
+  const { clearUnreadMessages } = useNotifications();
+  useEffect(() => { clearUnreadMessages(); }, [clearUnreadMessages]);
 
   useEffect(() => {
     api.get("/trainer/clients")

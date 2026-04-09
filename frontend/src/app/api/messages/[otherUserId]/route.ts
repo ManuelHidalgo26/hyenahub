@@ -54,11 +54,14 @@ export async function POST(
     return NextResponse.json({ success: false, error: "El mensaje no puede estar vacío" }, { status: 400 });
   }
 
-  const msg = await prisma.message.create({
-    data: { senderId, receiverId, body: messageBody.trim() },
-  });
+  const [msg, sender] = await Promise.all([
+    prisma.message.create({ data: { senderId, receiverId, body: messageBody.trim() } }),
+    prisma.user.findUnique({ where: { id: senderId }, select: { name: true } }),
+  ]);
 
-  await pusherServer.trigger(`private-user-${receiverId}`, "message.new", msg);
+  // Include senderName so the receiver can show a notification toast
+  const msgWithSender = { ...msg, senderName: sender?.name ?? "Alguien" };
+  await pusherServer.trigger(`private-user-${receiverId}`, "message.new", msgWithSender);
   await pusherServer.trigger(`private-user-${senderId}`,   "message.new", msg);
 
   return NextResponse.json({ success: true, data: msg }, { status: 201 });

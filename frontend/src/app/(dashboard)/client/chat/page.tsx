@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import api from "@/lib/api";
 import { getPusherClient } from "@/lib/pusher-client";
 import { ErrorBanner } from "@/components/ErrorBanner";
+import { useNotifications } from "@/components/NotificationProvider";
 
 interface Message { id: string; senderId: string; body: string; createdAt: string; read: boolean; }
 interface TrainerInfo { user: { id: string; name: string; avatar: string | null } }
@@ -33,6 +34,8 @@ export default function ClientChatPage() {
   const [fetchErr, setFetchErr] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const myId = session?.user?.id;
+  const { clearUnreadMessages } = useNotifications();
+  useEffect(() => { clearUnreadMessages(); }, [clearUnreadMessages]);
 
   function load() {
     setLoading(true); setFetchErr("");

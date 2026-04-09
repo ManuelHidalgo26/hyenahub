@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NotificationProvider } from "@/components/NotificationProvider";
+import { NotificationProvider, useNotifications } from "@/components/NotificationProvider";
 
 function DumbbellIcon({ className }: { className?: string }) {
   return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h8M4 9h4v6H4V9M16 9h4v6h-4V9" /></svg>;
@@ -37,16 +37,30 @@ const ROLE_META: Record<string, { label: string; color: string }> = {
 };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <NotificationProvider>
+      <DashboardShell>{children}</DashboardShell>
+    </NotificationProvider>
+  );
+}
+
+function DashboardShell({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
   const pathname = usePathname();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { unreadMessages, clearUnreadMessages } = useNotifications();
 
   const role   = session?.user?.role as keyof typeof NAV | undefined;
   const links  = role ? NAV[role] ?? [] : [];
   const meta   = role ? ROLE_META[role] : null;
   const name    = session?.user?.name ?? "";
   const initial = name.charAt(0).toUpperCase();
+
+  // Clear unread badge when visiting chat
+  useEffect(() => {
+    if (pathname?.includes("/chat")) clearUnreadMessages();
+  }, [pathname, clearUnreadMessages]);
 
   // Close user menu on outside click
   useEffect(() => {
@@ -68,8 +82,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   );
 
   return (
-    <NotificationProvider>
-      <div className="flex h-[100dvh] bg-zinc-950 overflow-hidden">
+    <div className="flex h-[100dvh] bg-zinc-950 overflow-hidden">
 
         {/* ════════════════════════════════════════════════
             DESKTOP SIDEBAR (hidden on mobile)
@@ -94,8 +107,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Nav */}
           <nav className="flex-1 px-3 py-4 space-y-0.5">
             {links.map(({ href, label, icon: Icon }) => {
-              const active = pathname === href || (href !== "/trainer" && href !== "/client" && href !== "/admin" && pathname.startsWith(href + "/")) || pathname === href;
               const isActive = pathname === href || (href.split("/").length > 2 && pathname.startsWith(href));
+              const isChat = href.includes("/chat");
+              const showBadge = isChat && unreadMessages > 0 && !isActive;
               return (
                 <Link key={href} href={href}
                   className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
@@ -103,7 +117,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       ? "bg-orange-500/10 text-orange-400 border border-orange-500/20"
                       : "text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.04] border border-transparent"
                   }`}>
-                  <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-orange-400" : "text-zinc-600 group-hover:text-zinc-400"}`} />
+                  <div className="relative shrink-0">
+                    <Icon className={`w-4 h-4 ${isActive ? "text-orange-400" : "text-zinc-600 group-hover:text-zinc-400"}`} />
+                    {showBadge && (
+                      <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 px-0.5 bg-orange-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">
+                        {unreadMessages > 9 ? "9+" : unreadMessages}
+                      </span>
+                    )}
+                  </div>
                   {label}
                   {isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-orange-400" />}
                 </Link>
@@ -185,6 +206,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="flex items-stretch h-16">
               {links.map(({ href, label, icon: Icon }) => {
                 const isActive = pathname === href || (href.split("/").length > 2 && pathname.startsWith(href));
+                const isChat = href.includes("/chat");
+                const showBadge = isChat && unreadMessages > 0 && !isActive;
                 return (
                   <Link key={href} href={href}
                     className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 transition-all duration-200 relative ${
@@ -193,7 +216,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     {isActive && (
                       <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-gradient-to-r from-orange-500 to-amber-500 rounded-full" />
                     )}
-                    <Icon className="w-5 h-5" />
+                    <div className="relative">
+                      <Icon className="w-5 h-5" />
+                      {showBadge && (
+                        <span className="absolute -top-1.5 -right-2 min-w-[15px] h-3.5 px-0.5 bg-orange-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">
+                          {unreadMessages > 9 ? "9+" : unreadMessages}
+                        </span>
+                      )}
+                    </div>
                     <span className={`text-[10px] font-semibold tracking-wide ${isActive ? "text-orange-400" : "text-zinc-600"}`}>
                       {label}
                     </span>
@@ -206,7 +236,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </nav>
         </div>
       </div>
-    </NotificationProvider>
   );
 }
 

@@ -2,7 +2,9 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
+import { usePathname } from "next/navigation";
 import { getPusherClient } from "@/lib/pusher-client";
+import api from "@/lib/api";
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 export type ToastType = "success" | "info" | "warning" | "fire";
@@ -18,6 +20,8 @@ interface NotifCtx {
   toasts: Toast[];
   addToast: (t: Omit<Toast, "id">) => void;
   removeToast: (id: string) => void;
+  unreadMessages: number;
+  clearUnreadMessages: () => void;
 }
 
 /* ─── Context ─────────────────────────────────────────────────────────────── */
@@ -25,6 +29,8 @@ const NotifContext = createContext<NotifCtx>({
   toasts: [],
   addToast: () => {},
   removeToast: () => {},
+  unreadMessages: 0,
+  clearUnreadMessages: () => {},
 });
 
 export function useNotifications() {
@@ -34,8 +40,22 @@ export function useNotifications() {
 /* ─── Provider ────────────────────────────────────────────────────────────── */
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
+  const pathname = usePathname();
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [unreadMessages, setUnreadMessages] = useState(0);
   const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const pathnameRef = useRef(pathname);
+  useEffect(() => { pathnameRef.current = pathname; }, [pathname]);
+
+  const clearUnreadMessages = useCallback(() => setUnreadMessages(0), []);
+
+  // Load initial unread count on mount
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    api.get("/messages").then(r => {
+      setUnreadMessages(r.data?.data?.count ?? 0);
+    }).catch(() => {});
+  }, [session?.user?.id]);
 
   const removeToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
@@ -58,6 +78,29 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const pusher = getPusherClient();
     const channel = pusher.subscribe(`private-user-${userId}`);
 
+    // New message from another user
+    channel.bind("message.new", (data: { senderId: string; senderName?: string; body: string }) => {
+      if (data.senderId === userId) return; // ignore own messages
+      // Increment badge always
+      setUnreadMessages(prev => prev + 1);
+      // Show toast only when not on the chat page
+      const onChatPage = pathnameRef.current?.includes("/chat");
+      if (!onChatPage) {
+        addToast({
+          type: "info",
+          title: `Nuevo mensaje de ${data.senderName ?? "tu entrenador"}`,
+          message: data.body.length > 60 ? data.body.slice(0, 60) + "…" : data.body,
+        });
+        // Browser notification if permitted
+        if (typeof window !== "undefined" && Notification?.permission === "granted") {
+          new Notification(`Mensaje de ${data.senderName ?? "TrainerHub"}`, {
+            body: data.body.length > 80 ? data.body.slice(0, 80) + "…" : data.body,
+            icon: "/icon.png",
+          });
+        }
+      }
+    });
+
     // Trainer receives this when a client completes their full session
     channel.bind("session.completed", (data: { clientName: string; message: string }) => {
       addToast({
@@ -78,7 +121,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, [session?.user?.id, addToast]);
 
   return (
-    <NotifContext.Provider value={{ toasts, addToast, removeToast }}>
+    <NotifContext.Provider value={{ toasts, addToast, removeToast, unreadMessages, clearUnreadMessages }}>
       {children}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </NotifContext.Provider>
