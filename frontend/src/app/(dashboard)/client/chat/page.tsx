@@ -49,7 +49,7 @@ export default function ClientChatPage() {
 
   useEffect(() => { load(); }, []);
 
-  // Pusher: receive new messages
+  // Pusher: receive new messages in real-time
   useEffect(() => {
     if (!myId) return;
     const pusher = getPusherClient();
@@ -57,10 +57,30 @@ export default function ClientChatPage() {
     channel.bind("message.new", (msg: Message) => {
       setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
     });
-    return () => {
-      pusher.unsubscribe(`private-user-${myId}`);
-    };
+    return () => { pusher.unsubscribe(`private-user-${myId}`); };
   }, [myId]);
+
+  // Polling fallback: sync every 3s in case Pusher auth fails
+  const trainerRef = useRef<TrainerInfo | null>(null);
+  useEffect(() => { trainerRef.current = trainer; }, [trainer]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const t = trainerRef.current;
+      if (!t) return;
+      api.get(`/messages/${t.user.id}`).then(r => {
+        const server: Message[] = r.data.data;
+        const serverIds = new Set(server.map((m: Message) => m.id));
+        setMessages(prev => {
+          const pending = prev.filter(m => m.id.startsWith("temp-") && !serverIds.has(m.id));
+          return [...server, ...pending].sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          );
+        });
+      }).catch(() => {});
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Scroll to bottom on new messages
   useEffect(() => {

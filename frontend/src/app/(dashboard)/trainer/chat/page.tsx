@@ -50,10 +50,27 @@ export default function TrainerChatPage() {
         setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
       }
     });
-    return () => {
-      pusher.unsubscribe(`private-user-${myId}`);
-    };
+    return () => { pusher.unsubscribe(`private-user-${myId}`); };
   }, [myId]);
+
+  // Polling fallback: sync every 3s in case Pusher auth fails
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const sel = selectedRef.current;
+      if (!sel) return;
+      api.get(`/messages/${sel.user.id}`).then(r => {
+        const server: Message[] = r.data.data;
+        const serverIds = new Set(server.map((m: Message) => m.id));
+        setMessages(prev => {
+          const pending = prev.filter(m => m.id.startsWith("temp-") && !serverIds.has(m.id));
+          return [...server, ...pending].sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          );
+        });
+      }).catch(() => {});
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Load conversation when a client is selected
   useEffect(() => {
