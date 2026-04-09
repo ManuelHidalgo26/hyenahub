@@ -72,7 +72,7 @@ export default function ClientDietPage() {
 
   function load() {
     setLoading(true); setFetchErr("");
-    api.get("/diets/my")
+    api.get("/diets")
       .then(r => setDiets(r.data.data))
       .catch((e: Error) => setFetchErr(e.message))
       .finally(() => setLoading(false));
