@@ -81,10 +81,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     // New message from another user
     channel.bind("message.new", (data: { senderId: string; senderName?: string; body: string }) => {
       if (data.senderId === userId) return; // ignore own messages
-      // Increment badge always
-      setUnreadMessages(prev => prev + 1);
-      // Show toast only when not on the chat page
       const onChatPage = pathnameRef.current?.includes("/chat");
+      // Only increment badge when not already reading the chat
+      if (!onChatPage) setUnreadMessages(prev => prev + 1);
+      // Show toast only when not on the chat page
       if (!onChatPage) {
         addToast({
           type: "info",
