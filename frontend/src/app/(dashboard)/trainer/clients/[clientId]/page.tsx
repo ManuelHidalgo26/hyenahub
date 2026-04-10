@@ -90,12 +90,13 @@ export default function ClientDetailPage() {
   const [activeTab,  setActiveTab]  = useState<"routines" | "diet">("routines");
 
   // Routine form
-  const [showForm,     setShowForm]     = useState(false);
-  const [weekStart,    setWeekStart]    = useState(getMonday());
-  const [routineNote,  setRoutineNote]  = useState("");
-  const [exercises,    setExercises]    = useState<ExForm[]>([{ ...EMPTY }]);
-  const [submitting,   setSubmitting]   = useState(false);
-  const [formError,    setFormError]    = useState("");
+  const [showForm,         setShowForm]         = useState(false);
+  const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
+  const [weekStart,        setWeekStart]        = useState(getMonday());
+  const [routineNote,      setRoutineNote]      = useState("");
+  const [exercises,        setExercises]        = useState<ExForm[]>([{ ...EMPTY }]);
+  const [submitting,       setSubmitting]       = useState(false);
+  const [formError,        setFormError]        = useState("");
 
   // Templates
   const [templates,     setTemplates]     = useState<RoutineTemplate[]>([]);
@@ -287,26 +288,65 @@ export default function ClientDetailPage() {
     setFormError("");
     if (exercises.some(ex => !ex.name.trim())) { setFormError("Cada ejercicio debe tener nombre."); return; }
     setSubmitting(true);
+    const exPayload = exercises.map((ex, i) => ({
+      name: ex.name.trim(), sets: parseInt(ex.sets) || 3,
+      reps: parseInt(ex.reps) || 10,
+      weight: ex.weight ? parseFloat(ex.weight) : undefined,
+      notes: ex.notes || undefined, order: i,
+    }));
     try {
-      await api.post("/routines", {
-        clientId,
-        weekStart: new Date(weekStart + "T00:00:00.000Z").toISOString(),
-        notes: routineNote || undefined,
-        exercises: exercises.map((ex, i) => ({
-          name: ex.name.trim(), sets: parseInt(ex.sets) || 3,
-          reps: parseInt(ex.reps) || 10,
-          weight: ex.weight ? parseFloat(ex.weight) : undefined,
-          notes: ex.notes || undefined, order: i,
-        })),
-      });
-      const r = await api.get(`/trainer/clients/${clientId}`);
-      setClient(r.data.data);
-      setShowForm(false); setWeekStart(getMonday()); setRoutineNote(""); setExercises([{ ...EMPTY }]);
+      if (editingRoutineId) {
+        // Edit existing routine
+        const res = await api.patch(`/routines/${editingRoutineId}`, {
+          weekStart: new Date(weekStart + "T00:00:00.000Z").toISOString(),
+          notes: routineNote || undefined,
+          exercises: exPayload,
+        });
+        setClient(p => p ? {
+          ...p,
+          routines: p.routines.map(r => r.id === editingRoutineId ? res.data.data : r),
+        } : p);
+      } else {
+        // Create new routine
+        await api.post("/routines", {
+          clientId,
+          weekStart: new Date(weekStart + "T00:00:00.000Z").toISOString(),
+          notes: routineNote || undefined,
+          exercises: exPayload,
+        });
+        const r = await api.get(`/trainer/clients/${clientId}`);
+        setClient(r.data.data);
+      }
+      cancelForm();
     } catch (err: unknown) {
-      setFormError((err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? "Error al crear la rutina.");
+      setFormError((err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? (editingRoutineId ? "Error al editar la rutina." : "Error al crear la rutina."));
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function startEditRoutine(routine: Routine) {
+    setEditingRoutineId(routine.id);
+    setWeekStart(routine.weekStart.split("T")[0]);
+    setRoutineNote(routine.notes ?? "");
+    setExercises(routine.exercises.map(ex => ({
+      name:   ex.name,
+      sets:   String(ex.sets),
+      reps:   String(ex.reps),
+      weight: ex.weight ? String(ex.weight) : "",
+      notes:  ex.notes ?? "",
+    })));
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function cancelForm() {
+    setShowForm(false);
+    setEditingRoutineId(null);
+    setWeekStart(getMonday());
+    setRoutineNote("");
+    setExercises([{ ...EMPTY }]);
+    setFormError("");
   }
 
   async function deleteRoutine(id: string) {
@@ -419,7 +459,7 @@ export default function ClientDetailPage() {
       {/* Tabs */}
       <div className="flex gap-1 bg-zinc-900/50 border border-white/[0.05] rounded-xl p-1 w-fit mb-5">
         {(["routines", "diet"] as const).map(t => (
-          <button key={t} onClick={() => { setActiveTab(t); setShowForm(false); setShowDietForm(false); }}
+          <button key={t} onClick={() => { setActiveTab(t); cancelForm(); setShowDietForm(false); }}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
               activeTab === t ? "bg-zinc-800 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-300"
             }`}>
@@ -436,7 +476,7 @@ export default function ClientDetailPage() {
           <span className="ml-2 text-sm font-normal text-zinc-500">({client.routines.length})</span>
         </h2>
         <button
-          onClick={() => setShowForm(v => !v)}
+          onClick={() => showForm ? cancelForm() : setShowForm(true)}
           className={`shrink-0 ${showForm ? "btn-ghost" : "btn-primary"}`}
         >
           {showForm ? "Cancelar" : (
@@ -456,7 +496,7 @@ export default function ClientDetailPage() {
           <div className="flex items-center justify-between gap-3">
             <h3 className="font-semibold text-white flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
-              Nueva rutina para {client.user.name}
+              {editingRoutineId ? "Editar rutina" : `Nueva rutina para ${client.user.name}`}
             </h3>
             <button type="button" onClick={loadTemplatesList} disabled={loadTemplates}
               className="shrink-0 flex items-center gap-1.5 text-xs text-zinc-500 hover:text-orange-400 transition-colors border border-white/[0.06] hover:border-orange-500/30 px-3 py-1.5 rounded-lg bg-zinc-800/50">
@@ -611,9 +651,9 @@ export default function ClientDetailPage() {
             <button type="submit" disabled={submitting} className="btn-primary">
               {submitting ? (
                 <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Guardando...</>
-              ) : "Guardar rutina"}
+              ) : editingRoutineId ? "Guardar cambios" : "Guardar rutina"}
             </button>
-            <button type="button" onClick={() => setShowForm(false)} className="btn-ghost">Cancelar</button>
+            <button type="button" onClick={cancelForm} className="btn-ghost">Cancelar</button>
           </div>
           <datalist id="exercise-suggestions">
             {EXERCISE_SUGGESTIONS.map(s => <option key={s} value={s} />)}
@@ -670,6 +710,10 @@ export default function ClientDetailPage() {
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
+                    </button>
+                    <button onClick={() => startEditRoutine(routine)}
+                      className="text-zinc-700 hover:text-orange-400 transition-colors text-xs px-1">
+                      Editar
                     </button>
                     <button onClick={() => deleteRoutine(routine.id)}
                       className="text-zinc-700 hover:text-red-400 transition-colors text-xs px-1">
