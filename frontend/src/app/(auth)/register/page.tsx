@@ -138,7 +138,7 @@ export default function RegisterPage() {
             </div>
             <h1 className="text-2xl font-black text-white tracking-tight">Crear cuenta</h1>
             <p className="mt-1.5 text-sm text-zinc-400">
-              {step === 1 ? "¿Cómo vas a usar TrainerHub?" : role === "TRAINER" ? "Registrate como entrenador" : "Registrate como cliente"}
+              {step === 1 ? "¿Cómo vas a usar HyenaHub?" : role === "TRAINER" ? "Registrate como entrenador" : "Registrate como cliente"}
             </p>
           </div>
 
@@ -285,7 +285,7 @@ export default function RegisterPage() {
             </Link>
           </p>
         </div>
-        <p className="text-center mt-5 text-xs text-zinc-700">TrainerHub · Entrenamiento personalizado</p>
+        <p className="text-center mt-5 text-xs text-zinc-700">HyenaHub · Entrenamiento personalizado</p>
       </div>
     </div>
   );

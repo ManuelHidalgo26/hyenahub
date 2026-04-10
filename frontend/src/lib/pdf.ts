@@ -54,7 +54,7 @@ function addHeader(doc: jsPDF, subtitle: string) {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(15);
   doc.setFont("helvetica", "bold");
-  doc.text("TrainerHub", 14, 14);
+  doc.text("HyenaHub", 14, 14);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.text(subtitle, 60, 14);
@@ -65,7 +65,7 @@ function addFooter(doc: jsPDF) {
   doc.setFontSize(8);
   doc.setTextColor(...GRAY);
   doc.text(
-    `Generado por TrainerHub · ${new Date().toLocaleDateString("es-AR")}`,
+    `Generado por HyenaHub · ${new Date().toLocaleDateString("es-AR")}`,
     14,
     h - 10
   );

@@ -93,7 +93,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         });
         // Browser notification if permitted
         if (typeof window !== "undefined" && Notification?.permission === "granted") {
-          new Notification(`Mensaje de ${data.senderName ?? "TrainerHub"}`, {
+          new Notification(`Mensaje de ${data.senderName ?? "HyenaHub"}`, {
             body: data.body.length > 80 ? data.body.slice(0, 80) + "…" : data.body,
             icon: "/icon.png",
           });

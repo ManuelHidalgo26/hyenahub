@@ -42,7 +42,7 @@ export default function LoginPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
             </div>
-            <h1 className="text-2xl font-black text-white tracking-tight">TrainerHub</h1>
+            <h1 className="text-2xl font-black text-white tracking-tight">HyenaHub</h1>
             <p className="mt-1.5 text-sm text-zinc-400">Tu plataforma de entrenamiento profesional</p>
           </div>
 
@@ -79,7 +79,7 @@ export default function LoginPage() {
             </Link>
           </p>
         </div>
-        <p className="text-center mt-5 text-xs text-zinc-700">TrainerHub · Entrenamiento personalizado</p>
+        <p className="text-center mt-5 text-xs text-zinc-700">HyenaHub · Entrenamiento personalizado</p>
       </div>
     </div>
   );

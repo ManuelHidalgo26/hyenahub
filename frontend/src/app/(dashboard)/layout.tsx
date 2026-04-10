@@ -95,7 +95,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/30 shrink-0">
                 <BoltIcon className="w-4 h-4 text-white" />
               </div>
-              <span className="font-black text-white tracking-tight">TrainerHub</span>
+              <span className="font-black text-white tracking-tight">HyenaHub</span>
             </div>
             {meta && (
               <span className={`mt-2.5 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${meta.color}`}>
@@ -162,7 +162,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-md shadow-orange-500/30">
                 <BoltIcon className="w-3.5 h-3.5 text-white" />
               </div>
-              <span className="font-black text-white text-sm tracking-tight">TrainerHub</span>
+              <span className="font-black text-white text-sm tracking-tight">HyenaHub</span>
               {meta && (
                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${meta.color}`}>
                   {meta.label}
