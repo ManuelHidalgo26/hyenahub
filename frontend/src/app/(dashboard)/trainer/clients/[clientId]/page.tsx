@@ -104,6 +104,26 @@ export default function ClientDetailPage() {
   const [savingTpl,     setSavingTpl]     = useState(false);
   const [tplName,       setTplName]       = useState("");
 
+  // Note modal
+  const [noteModal,  setNoteModal]  = useState<{ exerciseName: string; note: string } | null>(null);
+
+  // Password reset
+  const [resetting,  setResetting]  = useState(false);
+  const [tempPass,   setTempPass]   = useState<string | null>(null);
+
+  async function resetPassword() {
+    if (!confirm(`¿Resetear la contraseña de ${client?.user.name}? Se generará una contraseña temporal.`)) return;
+    setResetting(true);
+    try {
+      const res = await api.post(`/trainer/clients/${clientId}/reset-password`);
+      setTempPass(res.data.data.tempPassword);
+    } catch {
+      alert("No se pudo resetear la contraseña.");
+    } finally {
+      setResetting(false);
+    }
+  }
+
   // Diet state
   const [diets,      setDiets]      = useState<Diet[]>([]);
   const [loadingDiets, setLoadingDiets] = useState(false);
@@ -301,6 +321,51 @@ export default function ClientDetailPage() {
   return (
     <div className="min-h-full p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
 
+      {/* ── Note modal ─────────────────────────────────────────────────── */}
+      {noteModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setNoteModal(null)}>
+          <div className="w-full max-w-md bg-zinc-900 border border-yellow-500/20 rounded-2xl overflow-hidden shadow-2xl animate-slide-up"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.05]">
+              <div>
+                <p className="text-xs text-zinc-500 font-semibold uppercase tracking-widest">Nota del cliente</p>
+                <p className="text-sm font-bold text-white mt-0.5">{noteModal.exerciseName}</p>
+              </div>
+              <button onClick={() => setNoteModal(null)} className="text-zinc-500 hover:text-white text-2xl leading-none transition-colors">×</button>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-sm text-yellow-400/80 italic leading-relaxed whitespace-pre-wrap">&ldquo;{noteModal.note}&rdquo;</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Temp password modal ────────────────────────────────────────── */}
+      {tempPass && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setTempPass(null)}>
+          <div className="w-full max-w-sm bg-zinc-900 border border-orange-500/20 rounded-2xl overflow-hidden shadow-2xl animate-slide-up"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.05]">
+              <p className="font-bold text-white">Contraseña temporal</p>
+              <button onClick={() => setTempPass(null)} className="text-zinc-500 hover:text-white text-2xl leading-none">×</button>
+            </div>
+            <div className="px-5 py-5 space-y-3">
+              <p className="text-sm text-zinc-400">Compartí esta contraseña con <span className="text-white font-semibold">{client?.user.name}</span> para que pueda ingresar:</p>
+              <div className="flex items-center gap-2 bg-zinc-800 border border-white/10 rounded-xl px-4 py-3">
+                <span className="flex-1 font-mono font-bold text-orange-400 text-lg tracking-widest">{tempPass}</span>
+                <button onClick={() => { navigator.clipboard.writeText(tempPass); }}
+                  className="text-xs text-zinc-500 hover:text-white border border-white/10 rounded-lg px-2 py-1 transition-colors">
+                  Copiar
+                </button>
+              </div>
+              <p className="text-xs text-zinc-600">El cliente deberá cambiarla desde su perfil cuando ingrese.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Back */}
       <button
         onClick={() => router.push("/trainer")}
@@ -340,6 +405,14 @@ export default function ClientDetailPage() {
               {client.notes}
             </p>
           )}
+
+          <button
+            onClick={resetPassword}
+            disabled={resetting}
+            className="mt-3 text-xs text-zinc-600 hover:text-orange-400 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+          >
+            🔑 {resetting ? "Reseteando..." : "Resetear contraseña"}
+          </button>
         </div>
       </div>
 
@@ -624,9 +697,12 @@ export default function ClientDetailPage() {
                   <div className="px-4 sm:px-5 py-3 border-t border-white/[0.04] bg-yellow-500/[0.03]">
                     <p className="text-xs text-zinc-600 font-semibold uppercase tracking-widest mb-2">Notas del cliente</p>
                     {routine.exercises.filter(e => e.clientNote).map(e => (
-                      <p key={e.id} className="text-xs text-yellow-500/70 italic mb-1">
-                        <span className="text-zinc-500 not-italic font-medium">{e.name}:</span> {e.clientNote}
-                      </p>
+                      <button key={e.id}
+                        onClick={() => setNoteModal({ exerciseName: e.name, note: e.clientNote! })}
+                        className="text-xs text-yellow-500/70 italic mb-1 text-left hover:text-yellow-400 transition-colors w-full cursor-pointer">
+                        <span className="text-zinc-500 not-italic font-medium">{e.name}:</span>{" "}
+                        <span className="line-clamp-1">{e.clientNote}</span>
+                      </button>
                     ))}
                   </div>
                 )}
