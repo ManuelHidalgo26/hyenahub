@@ -12,10 +12,11 @@ function DumbbellIcon({ className }: { className?: string }) {
 
 const NAV = {
   TRAINER: [
-    { href: "/trainer",        label: "Dashboard",  icon: GridIcon    },
-    { href: "/trainer/chat",   label: "Chat",       icon: ChatIcon    },
-    { href: "/trainer/videos", label: "Videos",     icon: VideoIcon   },
-    { href: "/settings",       label: "Perfil",     icon: SettingsIcon },
+    { href: "/trainer",            label: "Dashboard",  icon: GridIcon     },
+    { href: "/trainer/templates",  label: "Plantillas", icon: TemplateIcon },
+    { href: "/trainer/chat",       label: "Chat",       icon: ChatIcon     },
+    { href: "/trainer/videos",     label: "Videos",     icon: VideoIcon    },
+    { href: "/settings",           label: "Perfil",     icon: SettingsIcon },
   ],
   CLIENT: [
     { href: "/client",           label: "Rutina",   icon: DumbbellIcon },
@@ -93,7 +94,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           <div className="px-5 pt-6 pb-4 border-b border-white/[0.05]">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/30 shrink-0">
-                <BoltIcon className="w-4 h-4 text-white" />
+                <HyenaIcon className="w-4 h-4 text-white" />
               </div>
               <span className="font-black text-white tracking-tight">HyenaHub</span>
             </div>
@@ -160,7 +161,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             {/* Logo */}
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-md shadow-orange-500/30">
-                <BoltIcon className="w-3.5 h-3.5 text-white" />
+                <HyenaIcon className="w-3.5 h-3.5 text-white" />
               </div>
               <span className="font-black text-white text-sm tracking-tight">HyenaHub</span>
               {meta && (
@@ -240,8 +241,18 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 }
 
 /* ─── Icons ──────────────────────────────────────────── */
-function BoltIcon({ className }: { className?: string }) {
-  return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>;
+function HyenaIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 9 L5 4 L10 7" />
+      <path d="M14 7 L19 4 L17 9" />
+      <path d="M10 7 Q5 8 4.5 13 Q4 18 7 20 Q9.5 22 12 22 Q14.5 22 17 20 Q20 18 19.5 13 Q19 8 14 7 Q12 6 10 7 Z" />
+      <circle cx="9.5" cy="12.5" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="14.5" cy="12.5" r="1.2" fill="currentColor" stroke="none" />
+      <ellipse cx="12" cy="16.5" rx="2.5" ry="1.5" />
+      <circle cx="12" cy="16" r="0.7" fill="currentColor" stroke="none" />
+    </svg>
+  );
 }
 function GridIcon({ className }: { className?: string }) {
   return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>;
@@ -264,4 +275,7 @@ function LogoutIcon({ className }: { className?: string }) {
 }
 function SettingsIcon({ className }: { className?: string }) {
   return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
+}
+function TemplateIcon({ className }: { className?: string }) {
+  return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>;
 }

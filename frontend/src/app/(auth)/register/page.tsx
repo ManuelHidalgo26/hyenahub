@@ -132,8 +132,14 @@ export default function RegisterPage() {
           {/* Logo */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 shadow-lg shadow-orange-500/35 mb-4 glow-orange">
-              <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              <svg className="w-7 h-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M7 9 L5 4 L10 7" />
+                <path d="M14 7 L19 4 L17 9" />
+                <path d="M10 7 Q5 8 4.5 13 Q4 18 7 20 Q9.5 22 12 22 Q14.5 22 17 20 Q20 18 19.5 13 Q19 8 14 7 Q12 6 10 7 Z" />
+                <circle cx="9.5" cy="12.5" r="1.2" fill="currentColor" stroke="none" />
+                <circle cx="14.5" cy="12.5" r="1.2" fill="currentColor" stroke="none" />
+                <ellipse cx="12" cy="16.5" rx="2.5" ry="1.5" />
+                <circle cx="12" cy="16" r="0.7" fill="currentColor" stroke="none" />
               </svg>
             </div>
             <h1 className="text-2xl font-black text-white tracking-tight">Crear cuenta</h1>

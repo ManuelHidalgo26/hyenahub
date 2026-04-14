@@ -3,22 +3,29 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/server-auth";
 
-const exerciseSchema = z.object({
-  name:   z.string().min(1),
-  sets:   z.number().int().positive(),
-  reps:   z.number().int().positive(),
-  weight: z.number().optional(),
-  notes:  z.string().optional(),
-  order:  z.number().int().optional(),
+const mealSchema = z.object({
+  name:     z.string().min(1),
+  time:     z.string().optional(),
+  foods:    z.string().min(1),
+  calories: z.number().int().optional(),
+  protein:  z.number().int().optional(),
+  carbs:    z.number().int().optional(),
+  fat:      z.number().int().optional(),
+  notes:    z.string().optional(),
+  order:    z.number().int().optional(),
 });
 
 const patchSchema = z.object({
   name:        z.string().min(1).max(80).optional(),
   description: z.string().max(300).optional(),
-  exercises:   z.array(exerciseSchema).min(1),
+  calories:    z.number().int().optional(),
+  protein:     z.number().int().optional(),
+  carbs:       z.number().int().optional(),
+  fat:         z.number().int().optional(),
+  meals:       z.array(mealSchema).min(1),
 });
 
-// PATCH /api/templates/[templateId] — trainer edits a template
+// PATCH /api/diet-templates/[templateId] — trainer edits a diet template
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ templateId: string }> }
@@ -28,7 +35,7 @@ export async function PATCH(
 
   const { templateId } = await params;
 
-  const tmpl = await prisma.routineTemplate.findFirst({
+  const tmpl = await prisma.dietTemplate.findFirst({
     where: { id: templateId, trainerId: session!.user.profileId },
   });
   if (!tmpl) {
@@ -41,27 +48,30 @@ export async function PATCH(
     return NextResponse.json({ success: false, error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { name, description, exercises } = parsed.data;
+  const { name, description, calories, protein, carbs, fat, meals } = parsed.data;
 
-  // Delete existing exercises and recreate
-  await prisma.routineTemplateExercise.deleteMany({ where: { templateId } });
+  await prisma.dietTemplateMeal.deleteMany({ where: { templateId } });
 
-  const updated = await prisma.routineTemplate.update({
+  const updated = await prisma.dietTemplate.update({
     where: { id: templateId },
     data: {
       ...(name        !== undefined && { name }),
       ...(description !== undefined && { description }),
-      exercises: {
-        create: exercises.map((ex, i) => ({ ...ex, order: ex.order ?? i })),
+      ...(calories    !== undefined && { calories }),
+      ...(protein     !== undefined && { protein }),
+      ...(carbs       !== undefined && { carbs }),
+      ...(fat         !== undefined && { fat }),
+      meals: {
+        create: meals.map((m, i) => ({ ...m, order: m.order ?? i })),
       },
     },
-    include: { exercises: { orderBy: { order: "asc" } } },
+    include: { meals: { orderBy: { order: "asc" } } },
   });
 
   return NextResponse.json({ success: true, data: updated });
 }
 
-// DELETE /api/templates/[templateId] — trainer deletes a template
+// DELETE /api/diet-templates/[templateId] — trainer deletes a diet template
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ templateId: string }> }
@@ -71,14 +81,14 @@ export async function DELETE(
 
   const { templateId } = await params;
 
-  const tmpl = await prisma.routineTemplate.findFirst({
+  const tmpl = await prisma.dietTemplate.findFirst({
     where: { id: templateId, trainerId: session!.user.profileId },
   });
   if (!tmpl) {
     return NextResponse.json({ success: false, error: "Template no encontrado" }, { status: 404 });
   }
 
-  await prisma.routineTemplate.delete({ where: { id: templateId } });
+  await prisma.dietTemplate.delete({ where: { id: templateId } });
 
   return NextResponse.json({ success: true, message: "Template eliminado" });
 }

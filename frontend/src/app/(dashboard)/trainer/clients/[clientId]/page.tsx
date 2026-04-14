@@ -33,6 +33,11 @@ interface RoutineTemplate {
   id: string; name: string; description: string | null;
   exercises: { name: string; sets: number; reps: number; weight: number | null; notes: string | null; order: number }[];
 }
+interface DietTemplate {
+  id: string; name: string; description: string | null;
+  calories: number | null; protein: number | null; carbs: number | null; fat: number | null;
+  meals: { name: string; time: string | null; foods: string; calories: number | null; protein: number | null; carbs: number | null; fat: number | null; notes: string | null; order: number }[];
+}
 const EMPTY: ExForm = { name: "", sets: "3", reps: "10", weight: "", notes: "" };
 const EMPTY_MEAL: MealForm = { name: "", time: "", foods: "", calories: "", protein: "", carbs: "", fat: "", notes: "" };
 const MEAL_SUGGESTIONS = ["Desayuno", "Almuerzo", "Cena", "Colación", "Merienda", "Pre-entreno", "Post-entreno"];
@@ -138,6 +143,11 @@ export default function ClientDetailPage() {
   const [meals,      setMeals]      = useState<MealForm[]>([{ ...EMPTY_MEAL }]);
   const [dietSubmitting, setDietSubmitting] = useState(false);
   const [dietError,  setDietError]  = useState("");
+
+  // Diet templates
+  const [dietTemplates,     setDietTemplates]     = useState<DietTemplate[]>([]);
+  const [loadDietTemplates, setLoadDietTemplates] = useState(false);
+  const [showDietTemplates, setShowDietTemplates] = useState(false);
 
   useEffect(() => {
     api.get(`/trainer/clients/${clientId}`)
@@ -281,6 +291,62 @@ export default function ClientDetailPage() {
     if (!confirm("¿Eliminar esta dieta?")) return;
     await api.delete(`/diets/${id}`);
     setDiets(p => p.filter(d => d.id !== id));
+  }
+
+  async function loadDietTemplatesList() {
+    if (dietTemplates.length > 0) { setShowDietTemplates(true); return; }
+    setLoadDietTemplates(true);
+    try {
+      const res = await api.get("/diet-templates");
+      setDietTemplates(res.data.data);
+      setShowDietTemplates(true);
+    } finally {
+      setLoadDietTemplates(false);
+    }
+  }
+
+  function applyDietTemplate(t: DietTemplate) {
+    setDietName(t.name);
+    setDietDesc(t.description ?? "");
+    setDietCals(t.calories ? String(t.calories) : "");
+    setDietProtein(t.protein ? String(t.protein) : "");
+    setDietCarbs(t.carbs ? String(t.carbs) : "");
+    setDietFat(t.fat ? String(t.fat) : "");
+    setMeals(t.meals.map(m => ({
+      name:     m.name,
+      time:     m.time ?? "",
+      foods:    m.foods,
+      calories: m.calories ? String(m.calories) : "",
+      protein:  m.protein  ? String(m.protein)  : "",
+      carbs:    m.carbs    ? String(m.carbs)    : "",
+      fat:      m.fat      ? String(m.fat)      : "",
+      notes:    m.notes    ?? "",
+    })));
+    setShowDietTemplates(false);
+  }
+
+  async function saveAsDietTemplate() {
+    const name = dietName.trim() || `Template dieta ${new Date().toLocaleDateString("es-AR")}`;
+    if (meals.some(m => !m.name.trim() || !m.foods.trim())) return;
+    try {
+      const res = await api.post("/diet-templates", {
+        name,
+        description: dietDesc || undefined,
+        calories: dietCals    ? parseInt(dietCals)    : undefined,
+        protein:  dietProtein ? parseInt(dietProtein) : undefined,
+        carbs:    dietCarbs   ? parseInt(dietCarbs)   : undefined,
+        fat:      dietFat     ? parseInt(dietFat)     : undefined,
+        meals: meals.map((m, i) => ({
+          name: m.name.trim(), time: m.time || undefined, foods: m.foods.trim(),
+          calories: m.calories ? parseInt(m.calories) : undefined,
+          protein:  m.protein  ? parseInt(m.protein)  : undefined,
+          carbs:    m.carbs    ? parseInt(m.carbs)    : undefined,
+          fat:      m.fat      ? parseInt(m.fat)      : undefined,
+          notes:    m.notes    || undefined, order: i,
+        })),
+      });
+      setDietTemplates(p => [res.data.data, ...p]);
+    } catch { /* silently ignore */ }
   }
 
   async function submit(e: React.FormEvent) {
@@ -795,9 +861,46 @@ export default function ClientDetailPage() {
           {/* Diet form */}
           {showDietForm && (
             <form onSubmit={submitDiet} className="bg-zinc-900 border border-orange-500/20 rounded-2xl p-4 sm:p-6 mb-5 space-y-5 animate-slide-up-sm">
-              <h3 className="font-semibold text-white flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" /> Nuevo plan de dieta
-              </h3>
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="font-semibold text-white flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" /> Nuevo plan de dieta
+                </h3>
+                <button type="button" onClick={loadDietTemplatesList} disabled={loadDietTemplates}
+                  className="shrink-0 flex items-center gap-1.5 text-xs text-zinc-500 hover:text-orange-400 transition-colors border border-white/[0.06] hover:border-orange-500/30 px-3 py-1.5 rounded-lg bg-zinc-800/50">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  {loadDietTemplates ? "Cargando..." : "Usar template"}
+                </button>
+              </div>
+
+              {/* Diet template picker */}
+              {showDietTemplates && (
+                <div className="bg-zinc-800/60 border border-white/[0.06] rounded-xl p-3 space-y-2 animate-slide-up-sm">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Mis templates de dieta</p>
+                    <button type="button" onClick={() => setShowDietTemplates(false)} className="text-zinc-600 hover:text-zinc-400 text-lg leading-none">×</button>
+                  </div>
+                  {dietTemplates.length === 0 ? (
+                    <p className="text-xs text-zinc-600 text-center py-3">Todavía no guardaste ningún template de dieta.</p>
+                  ) : (
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                      {dietTemplates.map(t => (
+                        <div key={t.id} className="flex items-center justify-between gap-2 p-2 rounded-lg hover:bg-zinc-700/40 transition-colors">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-zinc-200 truncate">{t.name}</p>
+                            <p className="text-xs text-zinc-600">{t.meals.length} comidas{t.calories ? ` · ${t.calories} kcal` : ""}</p>
+                          </div>
+                          <button type="button" onClick={() => applyDietTemplate(t)}
+                            className="shrink-0 text-xs text-orange-400 hover:text-orange-300 font-semibold transition-colors px-2 py-1 rounded-lg hover:bg-orange-500/10">
+                            Aplicar
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Name + description */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -883,11 +986,20 @@ export default function ClientDetailPage() {
               </div>
 
               {dietError && <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 px-4 py-2.5 rounded-xl">{dietError}</p>}
-              <div className="flex gap-3 pt-1">
-                <button type="submit" disabled={dietSubmitting} className="btn-primary">
-                  {dietSubmitting ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Guardando...</> : "Guardar dieta"}
+              <div className="flex items-center justify-between gap-3 pt-1 flex-wrap">
+                <div className="flex gap-3">
+                  <button type="submit" disabled={dietSubmitting} className="btn-primary">
+                    {dietSubmitting ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Guardando...</> : "Guardar dieta"}
+                  </button>
+                  <button type="button" onClick={() => setShowDietForm(false)} className="btn-ghost">Cancelar</button>
+                </div>
+                <button type="button" onClick={saveAsDietTemplate}
+                  className="flex items-center gap-1.5 text-xs text-zinc-600 hover:text-orange-400 transition-colors border border-white/[0.06] hover:border-orange-500/30 px-3 py-1.5 rounded-lg bg-zinc-800/50">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                  </svg>
+                  Guardar como template
                 </button>
-                <button type="button" onClick={() => setShowDietForm(false)} className="btn-ghost">Cancelar</button>
               </div>
             </form>
           )}

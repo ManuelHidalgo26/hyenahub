@@ -51,11 +51,12 @@ model Trainer {
   bio       String?
   specialty String?
 
-  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  clients   Client[]
-  videos    TrainerVideo[]
-  diets     Diet[]
-  templates RoutineTemplate[]
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clients       Client[]
+  videos        TrainerVideo[]
+  diets         Diet[]
+  templates     RoutineTemplate[]
+  dietTemplates DietTemplate[]
 
   @@map("trainers")
 }
@@ -230,4 +231,41 @@ model Meal {
 
   @@index([dietId])
   @@map("meals")
+}
+
+model DietTemplate {
+  id          String   @id @default(cuid())
+  trainerId   String
+  name        String
+  description String?
+  calories    Int?
+  protein     Int?
+  carbs       Int?
+  fat         Int?
+  createdAt   DateTime @default(now())
+
+  trainer Trainer          @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  meals   DietTemplateMeal[]
+
+  @@index([trainerId])
+  @@map("diet_templates")
+}
+
+model DietTemplateMeal {
+  id         String  @id @default(cuid())
+  templateId String
+  name       String
+  time       String?
+  foods      String
+  calories   Int?
+  protein    Int?
+  carbs      Int?
+  fat        Int?
+  notes      String?
+  order      Int     @default(0)
+
+  template DietTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@map("diet_template_meals")
 }
