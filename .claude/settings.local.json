@@ -4,7 +4,10 @@
       "mcp__Claude_Preview__preview_start",
       "Bash(ls /c/Users/Hidal/OneDrive/Escritorio/Proyectos/TrainerHub/frontend/src/app/\\\\\\(dashboard\\\\\\)/admin)",
       "Bash(cat /c/Users/Hidal/OneDrive/Escritorio/Proyectos/TrainerHub/frontend/src/app/\\\\\\(dashboard\\\\\\)/trainer/page.tsx)",
-      "Bash(cat /c/Users/Hidal/OneDrive/Escritorio/Proyectos/TrainerHub/frontend/src/app/\\\\\\(dashboard\\\\\\)/client/page.tsx)"
+      "Bash(cat /c/Users/Hidal/OneDrive/Escritorio/Proyectos/TrainerHub/frontend/src/app/\\\\\\(dashboard\\\\\\)/client/page.tsx)",
+      "Bash(cp \"C:/Users/Hidal/OneDrive/Escritorio/HyenaFuel/hyena-blanco-naranja.png\" \"C:/Users/Hidal/OneDrive/Escritorio/Proyectos/TrainerHub/frontend/public/hyena-logo.png\")",
+      "Bash(cp \"C:/Users/Hidal/OneDrive/Escritorio/HyenaFuel/hyena.png\" \"C:/Users/Hidal/OneDrive/Escritorio/Proyectos/TrainerHub/frontend/src/app/icon.png\")",
+      "Bash(npx tsc:*)"
     ]
   }
 }

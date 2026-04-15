@@ -8,6 +8,10 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "HyenaHub",
   description: "Plataforma de gestión para entrenadores personales",
+  icons: {
+    icon: "/hyena-icon.png",
+    apple: "/hyena-icon.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

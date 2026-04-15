@@ -93,9 +93,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           {/* Logo */}
           <div className="px-5 pt-6 pb-4 border-b border-white/[0.05]">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/30 shrink-0">
-                <HyenaIcon className="w-4 h-4 text-white" />
-              </div>
+              <img src="/hyena-logo.png" alt="HyenaHub" className="w-8 h-8 rounded-xl shadow-lg shadow-orange-500/30 shrink-0 object-cover" />
               <span className="font-black text-white tracking-tight">HyenaHub</span>
             </div>
             {meta && (
@@ -160,9 +158,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           <header className="lg:hidden flex items-center justify-between px-4 h-14 shrink-0 bg-[#0d0d0f] border-b border-white/[0.05] z-40">
             {/* Logo */}
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-md shadow-orange-500/30">
-                <HyenaIcon className="w-3.5 h-3.5 text-white" />
-              </div>
+              <img src="/hyena-logo.png" alt="HyenaHub" className="w-7 h-7 rounded-lg shadow-md shadow-orange-500/30 object-cover" />
               <span className="font-black text-white text-sm tracking-tight">HyenaHub</span>
               {meta && (
                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${meta.color}`}>
@@ -243,14 +239,25 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 /* ─── Icons ──────────────────────────────────────────── */
 function HyenaIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M7 9 L5 4 L10 7" />
-      <path d="M14 7 L19 4 L17 9" />
-      <path d="M10 7 Q5 8 4.5 13 Q4 18 7 20 Q9.5 22 12 22 Q14.5 22 17 20 Q20 18 19.5 13 Q19 8 14 7 Q12 6 10 7 Z" />
-      <circle cx="9.5" cy="12.5" r="1.2" fill="currentColor" stroke="none" />
-      <circle cx="14.5" cy="12.5" r="1.2" fill="currentColor" stroke="none" />
-      <ellipse cx="12" cy="16.5" rx="2.5" ry="1.5" />
-      <circle cx="12" cy="16" r="0.7" fill="currentColor" stroke="none" />
+    <svg className={className} viewBox="0 0 32 32" fill="currentColor" stroke="none">
+      {/* Body — withers high (front-left), rump lower (right) */}
+      <path d="M6 18 C5 15 5 11 6 10 C7 7 10 6 12 6 C16 6 19 9 22 12 C24 14 26 19 25 23 L8 23 C6.5 23 5.5 21 6 18 Z" />
+      {/* Head */}
+      <ellipse cx="5" cy="13.5" rx="4" ry="3.5" />
+      {/* Snout */}
+      <ellipse cx="1.5" cy="13.5" rx="1.5" ry="1.2" />
+      {/* Ear front */}
+      <polygon points="4.5,10 6,7 7.5,10" />
+      {/* Ear back */}
+      <polygon points="7,9.5 8.5,6.5 10,9.5" />
+      {/* Front legs */}
+      <rect x="8" y="23" width="2.5" height="6" rx="0.8" />
+      <rect x="12" y="23" width="2.5" height="6" rx="0.8" />
+      {/* Back legs */}
+      <rect x="18" y="23" width="2.5" height="6" rx="0.8" />
+      <rect x="22" y="23" width="2.5" height="6" rx="0.8" />
+      {/* Tail */}
+      <path d="M23 14 Q26 13 27.5 11.5 Q28 10 27 10" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" />
     </svg>
   );
 }
