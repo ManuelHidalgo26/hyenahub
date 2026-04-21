@@ -16,6 +16,7 @@ const exerciseSchema = z.object({
 const createRoutineSchema = z.object({
   clientId: z.string(),
   weekStart: z.string().datetime(),
+  durationWeeks: z.number().int().min(1).max(52).default(4),
   notes: z.string().optional(),
   exercises: z.array(exerciseSchema).min(1),
 });
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { clientId, weekStart, notes, exercises } = parsed.data;
+    const { clientId, weekStart, durationWeeks, notes, exercises } = parsed.data;
 
     // Verify the client belongs to this trainer
     const client = await prisma.client.findFirst({
@@ -54,6 +55,7 @@ export async function POST(req: NextRequest) {
       data: {
         clientId,
         weekStart: new Date(weekStart),
+        durationWeeks,
         notes,
         exercises: {
           create: exercises.map((ex, i) => ({ ...ex, order: ex.order ?? i })),

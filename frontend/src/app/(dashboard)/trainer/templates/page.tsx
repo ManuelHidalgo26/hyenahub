@@ -11,7 +11,7 @@ interface MealForm { name: string; time: string; foods: string; calories: string
 const EMPTY_MEAL: MealForm = { name: "", time: "", foods: "", calories: "", protein: "", carbs: "", fat: "", notes: "" };
 
 interface RoutineTemplateEx { id: string; name: string; sets: number; reps: number; weight: number | null; notes: string | null; order: number; }
-interface RoutineTemplate { id: string; name: string; description: string | null; createdAt: string; exercises: RoutineTemplateEx[]; }
+interface RoutineTemplate { id: string; name: string; description: string | null; durationWeeks: number; createdAt: string; exercises: RoutineTemplateEx[]; }
 
 interface DietTemplateMeal { id: string; name: string; time: string | null; foods: string; calories: number | null; protein: number | null; carbs: number | null; fat: number | null; notes: string | null; order: number; }
 interface DietTemplate { id: string; name: string; description: string | null; calories: number | null; protein: number | null; carbs: number | null; fat: number | null; createdAt: string; meals: DietTemplateMeal[]; }
@@ -38,6 +38,7 @@ export default function TemplatesPage() {
   const [rEditingId,    setREditingId]    = useState<string | null>(null);
   const [rName,         setRName]         = useState("");
   const [rDesc,         setRDesc]         = useState("");
+  const [rDuration,     setRDuration]     = useState("4");
   const [exercises,     setExercises]     = useState<ExForm[]>([{ ...EMPTY_EX }]);
   const [rSubmitting,   setRSubmitting]   = useState(false);
   const [rError,        setRError]        = useState("");
@@ -86,24 +87,26 @@ export default function TemplatesPage() {
     setREditingId(t.id);
     setRName(t.name);
     setRDesc(t.description ?? "");
+    setRDuration(String(t.durationWeeks ?? 4));
     setExercises(t.exercises.map(e => ({ name: e.name, sets: String(e.sets), reps: String(e.reps), weight: e.weight ? String(e.weight) : "", notes: e.notes ?? "" })));
     setRShowForm(true); setRError("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function cancelRoutineForm() { setRShowForm(false); setREditingId(null); setRName(""); setRDesc(""); setExercises([{ ...EMPTY_EX }]); setRError(""); }
+  function cancelRoutineForm() { setRShowForm(false); setREditingId(null); setRName(""); setRDesc(""); setRDuration("4"); setExercises([{ ...EMPTY_EX }]); setRError(""); }
 
   async function submitRoutine(e: React.FormEvent) {
     e.preventDefault(); setRError("");
     if (exercises.some(ex => !ex.name.trim())) { setRError("Cada ejercicio debe tener nombre."); return; }
     setRSubmitting(true);
     const exPayload = exercises.map((ex, i) => ({ name: ex.name.trim(), sets: parseInt(ex.sets) || 3, reps: parseInt(ex.reps) || 10, weight: ex.weight ? parseFloat(ex.weight) : undefined, notes: ex.notes || undefined, order: i }));
+    const dur = parseInt(rDuration) || 4;
     try {
       if (rEditingId) {
-        const res = await api.patch(`/templates/${rEditingId}`, { name: rName, description: rDesc || undefined, exercises: exPayload });
+        const res = await api.patch(`/templates/${rEditingId}`, { name: rName, description: rDesc || undefined, durationWeeks: dur, exercises: exPayload });
         setRTemplates(p => p.map(t => t.id === rEditingId ? res.data.data : t));
       } else {
-        const res = await api.post("/templates", { name: rName, description: rDesc || undefined, exercises: exPayload });
+        const res = await api.post("/templates", { name: rName, description: rDesc || undefined, durationWeeks: dur, exercises: exPayload });
         setRTemplates(p => [res.data.data, ...p]);
       }
       cancelRoutineForm();
@@ -213,6 +216,23 @@ export default function TemplatesPage() {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Duración de la rutina</label>
+                <div className="flex flex-wrap gap-2">
+                  {[["1", "1 semana"], ["2", "2 semanas"], ["4", "4 semanas"], ["8", "8 semanas"], ["12", "12 semanas"]].map(([val, label]) => (
+                    <button key={val} type="button" onClick={() => setRDuration(val)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                        rDuration === val
+                          ? "bg-orange-500/15 border-orange-500/40 text-orange-400"
+                          : "bg-zinc-800/50 border-white/[0.06] text-zinc-400 hover:border-white/10 hover:text-white"
+                      }`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1.5 text-xs text-zinc-600">La rutina permanecerá activa para el cliente durante este período.</p>
+              </div>
+
               {/* Exercises */}
               <div>
                 <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">Ejercicios *</p>
@@ -267,7 +287,11 @@ export default function TemplatesPage() {
                     <button className="flex-1 text-left min-w-0" onClick={() => setRExpandedId(rExpandedId === t.id ? null : t.id)}>
                       <p className="font-semibold text-white truncate">{t.name}</p>
                       {t.description && <p className="text-xs text-zinc-500 mt-0.5 truncate">{t.description}</p>}
-                      <p className="text-xs text-zinc-600 mt-1">{t.exercises.length} ejercicio{t.exercises.length !== 1 ? "s" : ""}</p>
+                      <p className="text-xs text-zinc-600 mt-1">
+                        {t.exercises.length} ejercicio{t.exercises.length !== 1 ? "s" : ""}
+                        {" · "}
+                        <span className="text-zinc-500">{t.durationWeeks ?? 4} sem.</span>
+                      </p>
                     </button>
                     <div className="flex items-center gap-2 shrink-0">
                       <button onClick={() => startEditRoutine(t)} className="text-xs text-zinc-600 hover:text-orange-400 transition-colors px-1">Editar</button>

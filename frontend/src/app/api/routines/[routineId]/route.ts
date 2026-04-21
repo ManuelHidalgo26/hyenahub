@@ -13,9 +13,10 @@ const exerciseSchema = z.object({
 });
 
 const patchSchema = z.object({
-  notes:     z.string().optional(),
-  weekStart: z.string().optional(),
-  exercises: z.array(exerciseSchema).min(1),
+  notes:         z.string().optional(),
+  weekStart:     z.string().optional(),
+  durationWeeks: z.number().int().min(1).max(52).optional(),
+  exercises:     z.array(exerciseSchema).min(1),
 });
 
 // PATCH /api/routines/[routineId] — trainer edits a routine (replaces exercises)
@@ -50,7 +51,7 @@ export async function PATCH(
       );
     }
 
-    const { notes, weekStart, exercises } = parsed.data;
+    const { notes, weekStart, durationWeeks, exercises } = parsed.data;
 
     // Delete existing exercises and recreate — simplest consistent approach
     await prisma.exercise.deleteMany({ where: { routineId: routine.id } });
@@ -58,8 +59,9 @@ export async function PATCH(
     const updated = await prisma.routine.update({
       where: { id: routine.id },
       data: {
-        ...(notes     !== undefined && { notes }),
-        ...(weekStart !== undefined && { weekStart: new Date(weekStart) }),
+        ...(notes         !== undefined && { notes }),
+        ...(weekStart     !== undefined && { weekStart: new Date(weekStart) }),
+        ...(durationWeeks !== undefined && { durationWeeks }),
         exercises: {
           create: exercises.map(ex => ({
             name:   ex.name,

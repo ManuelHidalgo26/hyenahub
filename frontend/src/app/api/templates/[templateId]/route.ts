@@ -13,9 +13,10 @@ const exerciseSchema = z.object({
 });
 
 const patchSchema = z.object({
-  name:        z.string().min(1).max(80).optional(),
-  description: z.string().max(300).optional(),
-  exercises:   z.array(exerciseSchema).min(1),
+  name:          z.string().min(1).max(80).optional(),
+  description:   z.string().max(300).optional(),
+  durationWeeks: z.number().int().min(1).max(52).optional(),
+  exercises:     z.array(exerciseSchema).min(1),
 });
 
 // PATCH /api/templates/[templateId] — trainer edits a template
@@ -41,7 +42,7 @@ export async function PATCH(
     return NextResponse.json({ success: false, error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { name, description, exercises } = parsed.data;
+  const { name, description, durationWeeks, exercises } = parsed.data;
 
   // Delete existing exercises and recreate
   await prisma.routineTemplateExercise.deleteMany({ where: { templateId } });
@@ -49,8 +50,9 @@ export async function PATCH(
   const updated = await prisma.routineTemplate.update({
     where: { id: templateId },
     data: {
-      ...(name        !== undefined && { name }),
-      ...(description !== undefined && { description }),
+      ...(name          !== undefined && { name }),
+      ...(description   !== undefined && { description }),
+      ...(durationWeeks !== undefined && { durationWeeks }),
       exercises: {
         create: exercises.map((ex, i) => ({ ...ex, order: ex.order ?? i })),
       },

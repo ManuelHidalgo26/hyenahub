@@ -62,11 +62,12 @@ model Trainer {
 }
 
 model RoutineTemplate {
-  id          String   @id @default(cuid())
-  trainerId   String
-  name        String
-  description String?
-  createdAt   DateTime @default(now())
+  id            String   @id @default(cuid())
+  trainerId     String
+  name          String
+  description   String?
+  durationWeeks Int      @default(4)
+  createdAt     DateTime @default(now())
 
   trainer   Trainer                  @relation(fields: [trainerId], references: [id], onDelete: Cascade)
   exercises RoutineTemplateExercise[]
@@ -128,11 +129,12 @@ model Client {
 }
 
 model Routine {
-  id        String   @id @default(cuid())
-  clientId  String
-  weekStart DateTime
-  createdAt DateTime @default(now())
-  notes     String?
+  id            String   @id @default(cuid())
+  clientId      String
+  weekStart     DateTime
+  durationWeeks Int      @default(4)
+  createdAt     DateTime @default(now())
+  notes         String?
 
   client    Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
   exercises Exercise[]

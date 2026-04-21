@@ -13,9 +13,10 @@ const exerciseSchema = z.object({
 });
 
 const createSchema = z.object({
-  name:        z.string().min(1).max(80),
-  description: z.string().max(300).optional(),
-  exercises:   z.array(exerciseSchema).min(1),
+  name:          z.string().min(1).max(80),
+  description:   z.string().max(300).optional(),
+  durationWeeks: z.number().int().min(1).max(52).default(4),
+  exercises:     z.array(exerciseSchema).min(1),
 });
 
 // GET /api/templates — trainer's own templates
@@ -43,13 +44,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { name, description, exercises } = parsed.data;
+  const { name, description, durationWeeks, exercises } = parsed.data;
 
   const template = await prisma.routineTemplate.create({
     data: {
       trainerId: session!.user.profileId,
       name,
       description,
+      durationWeeks,
       exercises: {
         create: exercises.map((ex, i) => ({ ...ex, order: ex.order ?? i })),
       },

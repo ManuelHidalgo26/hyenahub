@@ -18,7 +18,7 @@ interface Exercise {
 }
 interface WeeklyFeedback { rating: number; comment: string | null; }
 interface Routine {
-  id: string; weekStart: string; notes: string | null; exercises: Exercise[];
+  id: string; weekStart: string; durationWeeks: number; notes: string | null; exercises: Exercise[];
   feedback?: WeeklyFeedback | null;
 }
 interface MealForm { name: string; time: string; foods: string; calories: string; protein: string; carbs: string; fat: string; notes: string; }
@@ -30,7 +30,7 @@ interface Diet {
 }
 interface ExForm { name: string; sets: string; reps: string; weight: string; notes: string; }
 interface RoutineTemplate {
-  id: string; name: string; description: string | null;
+  id: string; name: string; description: string | null; durationWeeks: number;
   exercises: { name: string; sets: number; reps: number; weight: number | null; notes: string | null; order: number }[];
 }
 interface DietTemplate {
@@ -98,6 +98,7 @@ export default function ClientDetailPage() {
   const [showForm,         setShowForm]         = useState(false);
   const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
   const [weekStart,        setWeekStart]        = useState(getMonday());
+  const [durationWeeks,    setDurationWeeks]    = useState("4");
   const [routineNote,      setRoutineNote]      = useState("");
   const [exercises,        setExercises]        = useState<ExForm[]>([{ ...EMPTY }]);
   const [submitting,       setSubmitting]       = useState(false);
@@ -204,6 +205,7 @@ export default function ClientDetailPage() {
   }
 
   function applyTemplate(t: RoutineTemplate) {
+    setDurationWeeks(String(t.durationWeeks ?? 4));
     setExercises(t.exercises.map(ex => ({
       name:   ex.name,
       sets:   String(ex.sets),
@@ -361,10 +363,12 @@ export default function ClientDetailPage() {
       notes: ex.notes || undefined, order: i,
     }));
     try {
+      const dur = parseInt(durationWeeks) || 4;
       if (editingRoutineId) {
         // Edit existing routine
         const res = await api.patch(`/routines/${editingRoutineId}`, {
           weekStart: new Date(weekStart + "T00:00:00.000Z").toISOString(),
+          durationWeeks: dur,
           notes: routineNote || undefined,
           exercises: exPayload,
         });
@@ -377,6 +381,7 @@ export default function ClientDetailPage() {
         await api.post("/routines", {
           clientId,
           weekStart: new Date(weekStart + "T00:00:00.000Z").toISOString(),
+          durationWeeks: dur,
           notes: routineNote || undefined,
           exercises: exPayload,
         });
@@ -394,6 +399,7 @@ export default function ClientDetailPage() {
   function startEditRoutine(routine: Routine) {
     setEditingRoutineId(routine.id);
     setWeekStart(routine.weekStart.split("T")[0]);
+    setDurationWeeks(String(routine.durationWeeks ?? 4));
     setRoutineNote(routine.notes ?? "");
     setExercises(routine.exercises.map(ex => ({
       name:   ex.name,
@@ -410,6 +416,7 @@ export default function ClientDetailPage() {
     setShowForm(false);
     setEditingRoutineId(null);
     setWeekStart(getMonday());
+    setDurationWeeks("4");
     setRoutineNote("");
     setExercises([{ ...EMPTY }]);
     setFormError("");
@@ -621,6 +628,23 @@ export default function ClientDetailPage() {
             </div>
           </div>
 
+          <div>
+            <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Duración de la rutina</label>
+            <div className="flex flex-wrap gap-2">
+              {([["1", "1 semana"], ["2", "2 semanas"], ["4", "4 semanas"], ["8", "8 semanas"], ["12", "12 semanas"]] as const).map(([val, label]) => (
+                <button key={val} type="button" onClick={() => setDurationWeeks(val)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                    durationWeeks === val
+                      ? "bg-orange-500/15 border-orange-500/40 text-orange-400"
+                      : "bg-zinc-800/50 border-white/[0.06] text-zinc-400 hover:border-white/10 hover:text-white"
+                  }`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1.5 text-xs text-zinc-600">La rutina permanecerá activa para el cliente durante este período.</p>
+          </div>
+
           {/* Exercise rows */}
           <div>
             <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">
@@ -758,6 +782,9 @@ export default function ClientDetailPage() {
                           Más reciente
                         </span>
                       )}
+                      <span className="text-xs bg-zinc-800 text-zinc-500 border border-white/[0.06] px-2 py-0.5 rounded-full">
+                        {routine.durationWeeks ?? 4} sem.
+                      </span>
                     </div>
                     {routine.notes && <p className="text-xs text-zinc-500 mt-0.5">{routine.notes}</p>}
                   </div>
