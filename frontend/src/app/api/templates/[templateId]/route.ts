@@ -15,7 +15,7 @@ const exerciseSchema = z.object({
 const patchSchema = z.object({
   name:          z.string().min(1).max(80).optional(),
   description:   z.string().max(300).optional(),
-  durationWeeks: z.number().int().min(1).max(52).optional(),
+  durationWeeks: z.number().int().min(0).max(52).optional(),
   exercises:     z.array(exerciseSchema).min(1),
 });
 

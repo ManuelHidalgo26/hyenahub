@@ -15,11 +15,13 @@ export async function GET() {
       include: { exercises: { orderBy: { order: "asc" } } },
     });
 
-    // Return the first routine whose duration hasn't expired yet
+    // Return the first routine whose duration hasn't expired yet.
+    // durationWeeks === 0 means indefinite — always active until replaced.
     const now = Date.now();
     const activeRoutine = routines.find(r => {
+      if (r.durationWeeks === 0) return true; // indefinite
       const endTime = new Date(r.weekStart).getTime() +
-        (r.durationWeeks ?? 4) * 7 * 24 * 60 * 60 * 1000;
+        r.durationWeeks * 7 * 24 * 60 * 60 * 1000;
       return endTime > now;
     }) ?? null;
 

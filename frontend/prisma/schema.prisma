@@ -66,7 +66,7 @@ model RoutineTemplate {
   trainerId     String
   name          String
   description   String?
-  durationWeeks Int      @default(4)
+  durationWeeks Int      @default(0)
   createdAt     DateTime @default(now())
 
   trainer   Trainer                  @relation(fields: [trainerId], references: [id], onDelete: Cascade)
@@ -132,7 +132,7 @@ model Routine {
   id            String   @id @default(cuid())
   clientId      String
   weekStart     DateTime
-  durationWeeks Int      @default(4)
+  durationWeeks Int      @default(0)
   createdAt     DateTime @default(now())
   notes         String?
 

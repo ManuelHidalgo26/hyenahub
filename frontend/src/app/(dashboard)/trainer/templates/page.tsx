@@ -38,7 +38,7 @@ export default function TemplatesPage() {
   const [rEditingId,    setREditingId]    = useState<string | null>(null);
   const [rName,         setRName]         = useState("");
   const [rDesc,         setRDesc]         = useState("");
-  const [rDuration,     setRDuration]     = useState("4");
+  const [rDuration,     setRDuration]     = useState("0");
   const [exercises,     setExercises]     = useState<ExForm[]>([{ ...EMPTY_EX }]);
   const [rSubmitting,   setRSubmitting]   = useState(false);
   const [rError,        setRError]        = useState("");
@@ -93,7 +93,7 @@ export default function TemplatesPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function cancelRoutineForm() { setRShowForm(false); setREditingId(null); setRName(""); setRDesc(""); setRDuration("4"); setExercises([{ ...EMPTY_EX }]); setRError(""); }
+  function cancelRoutineForm() { setRShowForm(false); setREditingId(null); setRName(""); setRDesc(""); setRDuration("0"); setExercises([{ ...EMPTY_EX }]); setRError(""); }
 
   async function submitRoutine(e: React.FormEvent) {
     e.preventDefault(); setRError("");
@@ -219,7 +219,7 @@ export default function TemplatesPage() {
               <div>
                 <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Duración de la rutina</label>
                 <div className="flex flex-wrap gap-2">
-                  {[["1", "1 semana"], ["2", "2 semanas"], ["4", "4 semanas"], ["8", "8 semanas"], ["12", "12 semanas"]].map(([val, label]) => (
+                  {[["0", "♾ Sin vencimiento"], ["1", "1 semana"], ["2", "2 semanas"], ["4", "4 semanas"], ["8", "8 semanas"], ["12", "12 semanas"]].map(([val, label]) => (
                     <button key={val} type="button" onClick={() => setRDuration(val)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
                         rDuration === val
@@ -230,7 +230,11 @@ export default function TemplatesPage() {
                     </button>
                   ))}
                 </div>
-                <p className="mt-1.5 text-xs text-zinc-600">La rutina permanecerá activa para el cliente durante este período.</p>
+                <p className="mt-1.5 text-xs text-zinc-600">
+                  {rDuration === "0"
+                    ? "La rutina permanecerá activa hasta que el entrenador la reemplace o elimine."
+                    : "La rutina se desactivará automáticamente al cumplirse el plazo."}
+                </p>
               </div>
 
               {/* Exercises */}
@@ -290,7 +294,9 @@ export default function TemplatesPage() {
                       <p className="text-xs text-zinc-600 mt-1">
                         {t.exercises.length} ejercicio{t.exercises.length !== 1 ? "s" : ""}
                         {" · "}
-                        <span className="text-zinc-500">{t.durationWeeks ?? 4} sem.</span>
+                        <span className="text-zinc-500">
+                          {(t.durationWeeks ?? 0) === 0 ? "♾ Sin vencimiento" : `${t.durationWeeks} sem.`}
+                        </span>
                       </p>
                     </button>
                     <div className="flex items-center gap-2 shrink-0">

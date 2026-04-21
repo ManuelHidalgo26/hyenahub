@@ -98,7 +98,7 @@ export default function ClientDetailPage() {
   const [showForm,         setShowForm]         = useState(false);
   const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
   const [weekStart,        setWeekStart]        = useState(getMonday());
-  const [durationWeeks,    setDurationWeeks]    = useState("4");
+  const [durationWeeks,    setDurationWeeks]    = useState("0");
   const [routineNote,      setRoutineNote]      = useState("");
   const [exercises,        setExercises]        = useState<ExForm[]>([{ ...EMPTY }]);
   const [submitting,       setSubmitting]       = useState(false);
@@ -416,7 +416,7 @@ export default function ClientDetailPage() {
     setShowForm(false);
     setEditingRoutineId(null);
     setWeekStart(getMonday());
-    setDurationWeeks("4");
+    setDurationWeeks("0");
     setRoutineNote("");
     setExercises([{ ...EMPTY }]);
     setFormError("");
@@ -631,7 +631,7 @@ export default function ClientDetailPage() {
           <div>
             <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Duración de la rutina</label>
             <div className="flex flex-wrap gap-2">
-              {([["1", "1 semana"], ["2", "2 semanas"], ["4", "4 semanas"], ["8", "8 semanas"], ["12", "12 semanas"]] as const).map(([val, label]) => (
+              {([["0", "♾ Sin vencimiento"], ["1", "1 semana"], ["2", "2 semanas"], ["4", "4 semanas"], ["8", "8 semanas"], ["12", "12 semanas"]] as const).map(([val, label]) => (
                 <button key={val} type="button" onClick={() => setDurationWeeks(val)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
                     durationWeeks === val
@@ -642,7 +642,11 @@ export default function ClientDetailPage() {
                 </button>
               ))}
             </div>
-            <p className="mt-1.5 text-xs text-zinc-600">La rutina permanecerá activa para el cliente durante este período.</p>
+            <p className="mt-1.5 text-xs text-zinc-600">
+              {durationWeeks === "0"
+                ? "La rutina permanecerá activa hasta que la reemplaces o la elimines."
+                : "La rutina se desactivará automáticamente al cumplirse el plazo."}
+            </p>
           </div>
 
           {/* Exercise rows */}
@@ -783,7 +787,7 @@ export default function ClientDetailPage() {
                         </span>
                       )}
                       <span className="text-xs bg-zinc-800 text-zinc-500 border border-white/[0.06] px-2 py-0.5 rounded-full">
-                        {routine.durationWeeks ?? 4} sem.
+                        {(routine.durationWeeks ?? 0) === 0 ? "♾ Sin vencimiento" : `${routine.durationWeeks} sem.`}
                       </span>
                     </div>
                     {routine.notes && <p className="text-xs text-zinc-500 mt-0.5">{routine.notes}</p>}

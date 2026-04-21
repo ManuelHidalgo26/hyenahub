@@ -16,7 +16,7 @@ const exerciseSchema = z.object({
 const createRoutineSchema = z.object({
   clientId: z.string(),
   weekStart: z.string().datetime(),
-  durationWeeks: z.number().int().min(1).max(52).default(4),
+  durationWeeks: z.number().int().min(0).max(52).default(0),
   notes: z.string().optional(),
   exercises: z.array(exerciseSchema).min(1),
 });
