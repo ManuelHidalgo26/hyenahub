@@ -120,6 +120,14 @@ hyenahub/
 6. **Soporte Vimeo/Drive en videos** — Con fallback para videos no reproducibles
 7. **Fix cookie oversized** — Solución definitiva al error Vercel 494
 8. **Cold-start Neon DB** — Manejo de reconexión en primera consulta
+9. **Paginación cursor-based** — Rutinas del cliente paginadas (10/página), evita O(n) en DB
+10. **Logging estructurado con Pino** — Logger centralizado con child loggers por módulo, pino-pretty en dev
+11. **Settings page completa** — Cambio de nombre, contraseña y avatar desde `/settings`
+12. **Búsqueda y filtrado de clientes** — Barra de búsqueda + filtro por nivel en dashboard del entrenador
+13. **Notificación al cliente de nueva rutina** — Cliente recibe push y toast cuando el entrenador asigna rutina (Pusher `routine.new`)
+14. **Error handling en frontend** — ErrorBanner + addToast en todas las operaciones críticas (fetch, delete, mutations)
+15. **Validación de URL de videos** — Valida YouTube/Vimeo/Drive/mp4 antes de guardar
+16. **next.config.js con remotePatterns** — Dominios de imágenes externas habilitados para Next.js Image
 
 ---
 
@@ -142,19 +150,19 @@ hyenahub/
 
 ### IMPORTANTE — Funcionalidades incompletas o faltantes
 
-6. **Subida de avatares** — El campo `avatar` existe en el modelo `User` pero no hay UI para que el usuario cambie su foto de perfil desde la app (solo hay endpoint `PATCH /api/profile/avatar` sin form en frontend). El avatar no se almacena en JWT (fix de Vercel 494) así que la lógica de mostrar avatar en UI está desconectada.
+6. **Subida de avatares** — UI implementada en `/settings` (subir por URL o base64). El avatar se muestra correctamente en el perfil pero NO se sincroniza con la sesión de NextAuth (no está en el JWT por el fix de Vercel 494). Requiere refetch del perfil para verlo actualizado.
 
 7. **Registro de entrenadores** — No hay flujo de registro público para entrenadores. Solo el admin puede crear entrenadores manualmente o mediante seed. Esto limita el onboarding.
 
-8. **Notificaciones al cliente desde el entrenador** — Socket.io notifica al entrenador cuando el cliente completa ejercicios, pero no hay notificación inversa (entrenador asigna rutina → cliente recibe push).
+8. ~~**Notificaciones al cliente desde el entrenador**~~ — ✅ Implementado: cliente recibe toast + browser push cuando el entrenador asigna una rutina (Pusher `routine.new` en `NotificationProvider`).
 
 9. **Chat — persistencia de mensajes leídos** — El badge de mensajes no leídos existe pero si el cliente cambia de pantalla el contador puede desincronizarse en ciertos escenarios de Pusher vs Socket.io.
 
-10. **Settings page** — Existe la ruta `/settings` pero no está implementada la UI de configuración de cuenta (cambio de contraseña propio, cambio de email, etc.).
+10. ~~**Settings page**~~ — ✅ Implementada: cambio de nombre, contraseña y avatar desde `/settings`.
 
-11. **Generación de PDF** — `lib/pdf.ts` y `jspdf` están instalados pero no hay botón de "exportar rutina como PDF" en la UI del cliente o del entrenador.
+11. ~~**Generación de PDF**~~ — ✅ Implementado: botón de descarga PDF en rutinas y dietas para el entrenador.
 
-12. **Manejo de errores en frontend** — Muchas llamadas a la API no tienen `try/catch` explícito o feedback al usuario en caso de fallo (solo el `ErrorBanner` genérico). Mejorar UX de errores.
+12. ~~**Manejo de errores en frontend**~~ — ✅ Implementado: ErrorBanner + addToast en páginas críticas (trainer, admin, clientId, videos).
 
 13. **Redis en producción** — Socket.io usa Redis adapter pero el fallback es in-memory. Si no hay `REDIS_URL`, múltiples instancias del backend no compartirán estado de sockets. En Railway con una sola instancia funciona; con múltiples instancias se necesita Redis real (Railway tiene el plugin).
 
@@ -162,17 +170,17 @@ hyenahub/
 
 14. **Tests** — No hay ningún test (unitario, integración, e2e). Riesgo alto en producción sin cobertura.
 
-15. **Logging estructurado** — No hay logger (Winston/Pino). Los errores solo van a `console.error`. En producción no hay trazabilidad.
+15. ~~**Logging estructurado**~~ — ✅ Implementado: Pino con child loggers por módulo (`socket`, `audit`), pino-pretty en dev.
 
-16. **Paginación** — Las listas de clientes, rutinas y mensajes no tienen paginación. Con muchos datos puede ser lento.
+16. ~~**Paginación**~~ — ✅ Implementado: cursor-based pagination en rutinas del cliente (10/página).
 
-17. **Búsqueda de clientes** — El entrenador no puede buscar/filtrar clientes por nombre, objetivo o nivel desde el dashboard.
+17. ~~**Búsqueda de clientes**~~ — ✅ Implementado: barra de búsqueda + filtros de nivel en el dashboard del entrenador.
 
 18. **Internacionalización** — La app está en español argentino hardcodeado. Si se quiere escalar, necesitaría i18n.
 
-19. **Validación de videos** — Al subir un video, no se valida si la URL es reproducible antes de guardar.
+19. ~~**Validación de videos**~~ — ✅ Implementado: valida YouTube/Vimeo/Drive/mp4 en el frontend antes de guardar.
 
-20. **Carga de imágenes externas** — El dominio de imágenes no está configurado en `next.config.js` (`images.domains`), lo que puede romper `<Image>` con URLs externas.
+20. ~~**Carga de imágenes externas**~~ — ✅ Implementado: `remotePatterns` configurado en `next.config.js` para avatares y thumbnails.
 
 ---
 

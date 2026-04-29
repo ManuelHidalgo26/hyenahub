@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
+import { useNotifications } from "@/components/NotificationProvider";
 
 interface TrainerVideo {
   id: string; title: string; description: string | null;
@@ -25,6 +26,11 @@ function getGoogleDriveId(url: string): string | null {
 
 function isDirectVideo(url: string): boolean {
   return /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url);
+}
+
+function isValidVideoUrl(url: string): boolean {
+  try { new URL(url); } catch { return false; }
+  return !!(getYouTubeId(url) || getVimeoId(url) || getGoogleDriveId(url) || isDirectVideo(url));
 }
 
 function VideoEmbed({ url }: { url: string }) {
@@ -89,6 +95,7 @@ function VideoEmbed({ url }: { url: string }) {
 }
 
 export default function TrainerVideosPage() {
+  const { addToast } = useNotifications();
   const [videos,    setVideos]    = useState<TrainerVideo[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [showForm,  setShowForm]  = useState(false);
@@ -101,12 +108,19 @@ export default function TrainerVideosPage() {
   const [preview,   setPreview]   = useState<TrainerVideo | null>(null);
 
   useEffect(() => {
-    api.get("/videos").then(r => setVideos(r.data.data)).finally(() => setLoading(false));
+    api.get("/videos")
+      .then(r => setVideos(r.data.data))
+      .catch(() => addToast({ type: "warning", title: "Error", message: "No se pudieron cargar los videos." }))
+      .finally(() => setLoading(false));
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (!isValidVideoUrl(url)) {
+      setError("URL no reconocida. Usá un enlace de YouTube, Vimeo, Google Drive o un archivo .mp4 directo.");
+      return;
+    }
     setSaving(true);
     try {
       const res = await api.post("/videos", {
@@ -115,7 +129,7 @@ export default function TrainerVideosPage() {
       setVideos(prev => [res.data.data, ...prev]);
       setShowForm(false); setTitle(""); setDesc(""); setUrl(""); setExercise("");
     } catch {
-      setError("URL inválida o error al guardar.");
+      setError("Error al guardar el video. Verificá tu conexión e intentá de nuevo.");
     } finally {
       setSaving(false);
     }
@@ -123,9 +137,13 @@ export default function TrainerVideosPage() {
 
   async function handleDelete(id: string) {
     if (!confirm("¿Eliminar este video?")) return;
-    await api.delete(`/videos/${id}`);
-    setVideos(prev => prev.filter(v => v.id !== id));
-    if (preview?.id === id) setPreview(null);
+    try {
+      await api.delete(`/videos/${id}`);
+      setVideos(prev => prev.filter(v => v.id !== id));
+      if (preview?.id === id) setPreview(null);
+    } catch {
+      addToast({ type: "warning", title: "Error", message: "No se pudo eliminar el video." });
+    }
   }
 
   if (loading) return <Loader />;
