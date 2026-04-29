@@ -78,27 +78,34 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const pusher = getPusherClient();
     const channel = pusher.subscribe(`private-user-${userId}`);
 
-    // New message from another user
+    function pushBrowserNotif(title: string, body: string) {
+      if (Notification?.permission === "granted") {
+        new Notification(title, { body, icon: "/icon.png" });
+      }
+    }
+
     channel.bind("message.new", (data: { senderId: string; senderName?: string; body: string }) => {
-      if (data.senderId === userId) return; // ignore own messages
+      if (data.senderId === userId) return;
       const onChatPage = pathnameRef.current?.includes("/chat");
-      // Only increment badge when not already reading the chat
       if (!onChatPage) setUnreadMessages(prev => prev + 1);
-      // Show toast only when not on the chat page
       if (!onChatPage) {
+        const preview = data.body.length > 60 ? data.body.slice(0, 60) + "…" : data.body;
         addToast({
           type: "info",
           title: `Nuevo mensaje de ${data.senderName ?? "tu entrenador"}`,
-          message: data.body.length > 60 ? data.body.slice(0, 60) + "…" : data.body,
+          message: preview,
         });
-        // Browser notification if permitted
-        if (typeof window !== "undefined" && Notification?.permission === "granted") {
-          new Notification(`Mensaje de ${data.senderName ?? "HyenaHub"}`, {
-            body: data.body.length > 80 ? data.body.slice(0, 80) + "…" : data.body,
-            icon: "/icon.png",
-          });
-        }
+        pushBrowserNotif(
+          `Mensaje de ${data.senderName ?? "HyenaHub"}`,
+          data.body.length > 80 ? data.body.slice(0, 80) + "…" : data.body,
+        );
       }
+    });
+
+    channel.bind("routine.new", (data: { routineId: string; message: string }) => {
+      const msg = data.message ?? "Tu entrenador te asignó una nueva rutina";
+      addToast({ type: "fire", title: "Nueva rutina asignada 🏋️", message: msg });
+      pushBrowserNotif("HyenaHub", msg);
     });
 
     // Trainer receives this when a client completes their full session

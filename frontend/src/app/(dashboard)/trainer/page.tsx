@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import api from "@/lib/api";
@@ -27,11 +27,18 @@ const STATS = [
   { key: "completedExercisesThisWeek", label: "Ejercicios completados", sub: "por tus clientes",     from: "from-red-700",    to: "to-orange-600", shadow: "shadow-red-500/30"    },
 ];
 
+const EXP_FILTERS = [
+  { value: "", label: "Todos" },
+  ...Object.entries(EXP).map(([value, { label }]) => ({ value, label })),
+];
+
 export default function TrainerDashboard() {
   const { data: session } = useSession();
   const [stats,   setStats]   = useState<Stats | null>(null);
   const [clients, setClients] = useState<ClientCard[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search,  setSearch]  = useState("");
+  const [expFilter, setExpFilter] = useState("");
 
   useEffect(() => {
     Promise.all([api.get("/trainer/dashboard"), api.get("/trainer/clients")])
@@ -43,6 +50,17 @@ export default function TrainerDashboard() {
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Buenos días" : hour < 18 ? "Buenas tardes" : "Buenas noches";
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return clients.filter(c => {
+      const matchesSearch = !q ||
+        c.user.name.toLowerCase().includes(q) ||
+        c.user.email.toLowerCase().includes(q) ||
+        c.goal.toLowerCase().includes(q);
+      return matchesSearch && (!expFilter || c.experience === expFilter);
+    });
+  }, [clients, search, expFilter]);
 
   return (
     <div className="min-h-full p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
@@ -72,17 +90,52 @@ export default function TrainerDashboard() {
 
       {/* Client grid */}
       <div className="mt-8 sm:mt-10 animate-fade-in" style={{ animationDelay: "240ms" }}>
-        <h2 className="text-lg font-black text-white mb-4 sm:mb-5">
-          Tus clientes <span className="text-zinc-600 font-normal text-sm">({clients.length})</span>
-        </h2>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4 sm:mb-5">
+          <h2 className="text-lg font-black text-white shrink-0">
+            Tus clientes <span className="text-zinc-600 font-normal text-sm">({filtered.length}/{clients.length})</span>
+          </h2>
+          {clients.length > 0 && (
+            <div className="flex flex-col sm:flex-row gap-2 sm:ml-auto w-full sm:w-auto">
+              <div className="relative">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
+                </svg>
+                <input
+                  type="text"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Buscar cliente..."
+                  className="w-full sm:w-52 bg-zinc-900 border border-white/[0.06] rounded-xl text-sm text-white placeholder-zinc-600 pl-9 pr-3 py-2 focus:outline-none focus:border-orange-500/40 transition-colors"
+                />
+              </div>
+              <div className="flex gap-1.5 flex-wrap">
+                {EXP_FILTERS.map(f => (
+                  <button key={f.value} type="button"
+                    onClick={() => setExpFilter(f.value)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                      expFilter === f.value
+                        ? "bg-orange-500/20 text-orange-400 border border-orange-500/30"
+                        : "bg-zinc-900 text-zinc-500 border border-white/[0.06] hover:text-zinc-300"
+                    }`}>
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
         {clients.length === 0 ? (
           <div className="border border-dashed border-white/10 rounded-2xl p-12 text-center text-zinc-600 text-sm">
             No tenés clientes asignados todavía.
           </div>
+        ) : filtered.length === 0 ? (
+          <div className="border border-dashed border-white/10 rounded-2xl p-12 text-center text-zinc-600 text-sm">
+            Ningún cliente coincide con la búsqueda.
+          </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {clients.map((client, i) => {
+            {filtered.map((client, i) => {
               const routine = client.routines[0];
               const total   = routine?.exercises.length ?? 0;
               const done    = routine?.exercises.filter(e => e.completed).length ?? 0;
