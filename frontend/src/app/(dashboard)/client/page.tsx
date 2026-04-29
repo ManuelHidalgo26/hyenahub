@@ -346,7 +346,7 @@ export default function ClientDashboard() {
   function load() {
     setLoading(true); setFetchErr("");
     Promise.allSettled([
-      api.get("/routines/my"),
+      api.get("/routines/my?limit=2"),
       api.get("/profile/my-trainer"),
     ]).then(([routinesRes, trainerRes]) => {
       if (routinesRes.status === "fulfilled") {

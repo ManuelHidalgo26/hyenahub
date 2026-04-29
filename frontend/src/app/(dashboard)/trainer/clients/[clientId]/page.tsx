@@ -150,12 +150,31 @@ export default function ClientDetailPage() {
   const [loadDietTemplates, setLoadDietTemplates] = useState(false);
   const [showDietTemplates, setShowDietTemplates] = useState(false);
 
+  // Routine pagination
+  const [routinesNextCursor, setRoutinesNextCursor] = useState<string | null>(null);
+  const [loadingMoreRoutines, setLoadingMoreRoutines] = useState(false);
+
   useEffect(() => {
     api.get(`/trainer/clients/${clientId}`)
-      .then(r => setClient(r.data.data))
+      .then(r => {
+        setClient(r.data.data);
+        setRoutinesNextCursor(r.data.routinesNextCursor ?? null);
+      })
       .catch(() => router.push("/trainer"))
       .finally(() => setLoading(false));
   }, [clientId]);
+
+  async function loadMoreRoutines() {
+    if (!routinesNextCursor || loadingMoreRoutines) return;
+    setLoadingMoreRoutines(true);
+    try {
+      const res = await api.get(`/routines/client/${clientId}?cursor=${routinesNextCursor}&limit=10`);
+      setClient(p => p ? { ...p, routines: [...p.routines, ...res.data.data] } : p);
+      setRoutinesNextCursor(res.data.nextCursor ?? null);
+    } finally {
+      setLoadingMoreRoutines(false);
+    }
+  }
 
   // Load diets when diet tab is opened
   useEffect(() => {
@@ -387,6 +406,7 @@ export default function ClientDetailPage() {
         });
         const r = await api.get(`/trainer/clients/${clientId}`);
         setClient(r.data.data);
+        setRoutinesNextCursor(r.data.routinesNextCursor ?? null);
       }
       cancelForm();
     } catch (err: unknown) {
@@ -868,6 +888,21 @@ export default function ClientDetailPage() {
               </div>
             );
           })}
+
+          {/* Load more routines */}
+          {routinesNextCursor && (
+            <button
+              onClick={loadMoreRoutines}
+              disabled={loadingMoreRoutines}
+              className="w-full mt-2 py-3 rounded-2xl border border-dashed border-white/10 text-sm text-zinc-500 hover:text-zinc-300 hover:border-white/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {loadingMoreRoutines ? (
+                <><span className="w-4 h-4 border-2 border-zinc-700 border-t-orange-500 rounded-full animate-spin" /> Cargando...</>
+              ) : (
+                "Ver rutinas anteriores"
+              )}
+            </button>
+          )}
         </div>
       ))}
 

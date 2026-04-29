@@ -2,18 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/server-auth";
 
-// GET /api/routines/client/[clientId] — list routines for a client (trainer view)
+const MAX_LIMIT = 50;
+
+// GET /api/routines/client/[clientId]?limit=N&cursor=<id>
 export async function GET(
-  _req: NextRequest,
-  { params }: { params: { clientId: string } }
+  req: NextRequest,
+  { params }: { params: Promise<{ clientId: string }> }
 ) {
   const { session, error } = await requireRole("TRAINER");
   if (error) return error;
 
+  const { clientId } = await params;
+  const { searchParams } = new URL(req.url);
+  const limit  = Math.min(parseInt(searchParams.get("limit") ?? "10"), MAX_LIMIT);
+  const cursor = searchParams.get("cursor") ?? undefined;
+
   try {
-    // Verify client belongs to this trainer
     const client = await prisma.client.findFirst({
-      where: { id: params.clientId, trainerId: session!.user.profileId },
+      where: { id: clientId, trainerId: session!.user.profileId },
     });
 
     if (!client) {
@@ -24,15 +30,21 @@ export async function GET(
     }
 
     const routines = await prisma.routine.findMany({
-      where: { clientId: params.clientId },
+      where: { clientId },
       orderBy: { weekStart: "desc" },
+      take: limit + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       include: {
         exercises: { orderBy: { order: "asc" } },
         feedback: true,
       },
     });
 
-    return NextResponse.json({ success: true, data: routines });
+    const hasMore = routines.length > limit;
+    const data = hasMore ? routines.slice(0, limit) : routines;
+    const nextCursor = hasMore ? data[data.length - 1].id : null;
+
+    return NextResponse.json({ success: true, data, nextCursor });
   } catch (err) {
     console.error("[GET /api/routines/client/[clientId]]", err);
     return NextResponse.json(
