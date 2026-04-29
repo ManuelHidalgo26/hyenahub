@@ -34,8 +34,7 @@ export default function ClientChatPage() {
   const [fetchErr, setFetchErr] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const myId = session?.user?.id;
-  const { clearUnreadMessages } = useNotifications();
-  useEffect(() => { clearUnreadMessages(); }, [clearUnreadMessages]);
+  const { refreshUnreadCount, setActiveChatUserId } = useNotifications();
 
   function load() {
     setLoading(true); setFetchErr("");
@@ -43,14 +42,19 @@ export default function ClientChatPage() {
       .then(async trainerRes => {
         const t: TrainerInfo = trainerRes.data.data;
         setTrainer(t);
+        setActiveChatUserId(t.user.id);
         const msgsRes = await api.get(`/messages/${t.user.id}`);
         setMessages(msgsRes.data.data);
+        refreshUnreadCount();
       })
       .catch((e: Error) => setFetchErr(e.message))
       .finally(() => setLoading(false));
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    return () => setActiveChatUserId(null);
+  }, []);
 
   // Pusher: receive new messages in real-time
   useEffect(() => {

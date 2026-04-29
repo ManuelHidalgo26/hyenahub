@@ -21,7 +21,8 @@ interface NotifCtx {
   addToast: (t: Omit<Toast, "id">) => void;
   removeToast: (id: string) => void;
   unreadMessages: number;
-  clearUnreadMessages: () => void;
+  refreshUnreadCount: () => void;
+  setActiveChatUserId: (id: string | null) => void;
 }
 
 /* ─── Context ─────────────────────────────────────────────────────────────── */
@@ -30,7 +31,8 @@ const NotifContext = createContext<NotifCtx>({
   addToast: () => {},
   removeToast: () => {},
   unreadMessages: 0,
-  clearUnreadMessages: () => {},
+  refreshUnreadCount: () => {},
+  setActiveChatUserId: () => {},
 });
 
 export function useNotifications() {
@@ -45,17 +47,24 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [unreadMessages, setUnreadMessages] = useState(0);
   const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const pathnameRef = useRef(pathname);
+  const activeChatUserIdRef = useRef<string | null>(null);
   useEffect(() => { pathnameRef.current = pathname; }, [pathname]);
 
-  const clearUnreadMessages = useCallback(() => setUnreadMessages(0), []);
+  const refreshUnreadCount = useCallback(() => {
+    api.get("/messages").then(r => {
+      setUnreadMessages(r.data?.data?.count ?? 0);
+    }).catch(() => {});
+  }, []);
+
+  const setActiveChatUserId = useCallback((id: string | null) => {
+    activeChatUserIdRef.current = id;
+  }, []);
 
   // Load initial unread count on mount
   useEffect(() => {
     if (!session?.user?.id) return;
-    api.get("/messages").then(r => {
-      setUnreadMessages(r.data?.data?.count ?? 0);
-    }).catch(() => {});
-  }, [session?.user?.id]);
+    refreshUnreadCount();
+  }, [session?.user?.id, refreshUnreadCount]);
 
   const removeToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
@@ -86,9 +95,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     channel.bind("message.new", (data: { senderId: string; senderName?: string; body: string }) => {
       if (data.senderId === userId) return;
-      const onChatPage = pathnameRef.current?.includes("/chat");
-      if (!onChatPage) setUnreadMessages(prev => prev + 1);
-      if (!onChatPage) {
+      // Only suppress badge/toast if this sender is the active chat (being read right now)
+      const isActiveChat = activeChatUserIdRef.current === data.senderId;
+      if (!isActiveChat) {
+        setUnreadMessages(prev => prev + 1);
         const preview = data.body.length > 60 ? data.body.slice(0, 60) + "…" : data.body;
         addToast({
           type: "info",
@@ -128,7 +138,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, [session?.user?.id, addToast]);
 
   return (
-    <NotifContext.Provider value={{ toasts, addToast, removeToast, unreadMessages, clearUnreadMessages }}>
+    <NotifContext.Provider value={{ toasts, addToast, removeToast, unreadMessages, refreshUnreadCount, setActiveChatUserId }}>
       {children}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </NotifContext.Provider>

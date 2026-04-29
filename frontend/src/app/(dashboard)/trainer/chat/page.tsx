@@ -28,8 +28,7 @@ export default function TrainerChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const myId = session?.user?.id;
   const selectedRef = useRef<ClientEntry | null>(null);
-  const { clearUnreadMessages } = useNotifications();
-  useEffect(() => { clearUnreadMessages(); }, [clearUnreadMessages]);
+  const { refreshUnreadCount, setActiveChatUserId } = useNotifications();
 
   useEffect(() => {
     api.get("/trainer/clients")
@@ -77,11 +76,16 @@ export default function TrainerChatPage() {
 
   // Load conversation when a client is selected
   useEffect(() => {
-    if (!selected) return;
+    if (!selected) {
+      setActiveChatUserId(null);
+      return;
+    }
+    setActiveChatUserId(selected.user.id);
     setLoadMsgs(true);
     api.get(`/messages/${selected.user.id}`)
-      .then(r => setMessages(r.data.data))
+      .then(r => { setMessages(r.data.data); refreshUnreadCount(); })
       .finally(() => setLoadMsgs(false));
+    return () => setActiveChatUserId(null);
   }, [selected]);
 
   useEffect(() => {

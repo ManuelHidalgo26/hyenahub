@@ -50,18 +50,13 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const { unreadMessages, clearUnreadMessages } = useNotifications();
+  const { unreadMessages } = useNotifications();
 
   const role   = session?.user?.role as keyof typeof NAV | undefined;
   const links  = role ? NAV[role] ?? [] : [];
   const meta   = role ? ROLE_META[role] : null;
   const name    = session?.user?.name ?? "";
   const initial = name.charAt(0).toUpperCase();
-
-  // Clear unread badge when visiting chat
-  useEffect(() => {
-    if (pathname?.includes("/chat")) clearUnreadMessages();
-  }, [pathname, clearUnreadMessages]);
 
   // Close user menu on outside click
   useEffect(() => {

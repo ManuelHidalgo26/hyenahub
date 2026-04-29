@@ -152,7 +152,7 @@ hyenahub/
 
 6. **Subida de avatares** — UI implementada en `/settings` (subir por URL o base64). El avatar se muestra correctamente en el perfil pero NO se sincroniza con la sesión de NextAuth (no está en el JWT por el fix de Vercel 494). Requiere refetch del perfil para verlo actualizado.
 
-7. **Registro de entrenadores** — No hay flujo de registro público para entrenadores. Solo el admin puede crear entrenadores manualmente o mediante seed. Esto limita el onboarding.
+7. ~~**Registro de entrenadores**~~ — ✅ Ya implementado: el formulario de registro soporta rol TRAINER (sin necesidad de seleccionar un entrenador), y el backend crea el perfil `Trainer` automáticamente.
 
 8. ~~**Notificaciones al cliente desde el entrenador**~~ — ✅ Implementado: cliente recibe toast + browser push cuando el entrenador asigna una rutina (Pusher `routine.new` en `NotificationProvider`).
 
