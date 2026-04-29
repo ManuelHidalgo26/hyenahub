@@ -4,7 +4,10 @@ import { createAdapter } from "@socket.io/redis-adapter";
 import { Redis } from "ioredis";
 import jwt from "jsonwebtoken";
 import { prisma } from "../services/prisma.service";
+import logger from "../services/logger.service";
 import { JwtPayload } from "../types";
+
+const socketLogger = logger.child({ module: "socket" });
 
 export let io: SocketIOServer;
 
@@ -17,8 +20,6 @@ export async function initSocket(httpServer: HttpServer, frontendUrl: string) {
     },
   });
 
-  // Use Redis adapter when REDIS_URL is set (production/staging)
-  // Falls back to in-memory adapter for local dev
   if (process.env.REDIS_URL) {
     try {
       const pubClient = new Redis(process.env.REDIS_URL);
@@ -28,57 +29,49 @@ export async function initSocket(httpServer: HttpServer, frontendUrl: string) {
         new Promise<void>((res, rej) => subClient.once("ready", res).once("error", rej)),
       ]);
       io.adapter(createAdapter(pubClient, subClient));
-      console.log("Socket.io using Redis adapter");
+      socketLogger.info("Socket.io using Redis adapter");
     } catch (err) {
-      console.warn("Redis adapter unavailable, falling back to in-memory:", err);
+      socketLogger.warn({ err }, "Redis adapter unavailable, falling back to in-memory");
     }
   } else {
-    console.log("Socket.io using in-memory adapter (set REDIS_URL to enable Redis)");
+    socketLogger.info("Socket.io using in-memory adapter");
   }
 
-  // Map userId → socketId for targeted notifications
   const userSockets = new Map<string, string>();
 
-  // ── JWT authentication middleware for socket connections ──────────────────
   io.use((socket, next) => {
     const token = socket.handshake.auth?.token as string | undefined;
-    if (!token) {
-      // Allow unauthenticated connections (they won't be able to register)
-      return next();
-    }
+    if (!token) return next();
     try {
       const payload = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload;
       (socket as unknown as { user: JwtPayload }).user = payload;
       next();
     } catch {
-      // Invalid token — still allow connection but mark as unauthenticated
       next();
     }
   });
 
   io.on("connection", (socket) => {
-    console.log(`Socket connected: ${socket.id}`);
+    socketLogger.debug({ socketId: socket.id }, "Socket connected");
 
-    // Register: validate that the userId matches the JWT payload
     socket.on("register", (userId: string) => {
       const socketUser = (socket as unknown as { user?: JwtPayload }).user;
-      // If JWT was provided, verify the registered userId matches it
       if (socketUser && socketUser.userId !== userId) {
-        console.warn(`Socket register mismatch: JWT userId=${socketUser.userId}, claimed=${userId}`);
-        return; // reject spoofed registration
+        socketLogger.warn(
+          { jwtUserId: socketUser.userId, claimedUserId: userId },
+          "Socket register mismatch — rejected"
+        );
+        return;
       }
       userSockets.set(userId, socket.id);
       socket.join(`user:${userId}`);
-      console.log(`User ${userId} registered to socket ${socket.id}`);
+      socketLogger.debug({ userId, socketId: socket.id }, "User registered to socket");
     });
 
-    // Client marks an exercise as completed
-    // trainerId here is the Trainer profile id (not userId)
     socket.on(
       "exercise:complete",
       async (data: { exerciseId: string; routineId: string; trainerId: string }) => {
         try {
-          // Look up the trainer's userId from their profile id
           const trainer = await prisma.trainer.findUnique({
             where: { id: data.trainerId },
             select: { userId: true },
@@ -90,13 +83,11 @@ export async function initSocket(httpServer: HttpServer, frontendUrl: string) {
             routineId: data.routineId,
           });
         } catch (err) {
-          console.error("exercise:complete socket error:", err);
+          socketLogger.error({ err, data }, "exercise:complete error");
         }
       }
     );
 
-    // Client completes full session
-    // trainerId here is the Trainer profile id (not userId)
     socket.on(
       "session:complete",
       async (data: { clientId: string; clientName: string; trainerId: string }) => {
@@ -113,12 +104,11 @@ export async function initSocket(httpServer: HttpServer, frontendUrl: string) {
             message:    `${data.clientName} completó su sesión de hoy 💪`,
           });
         } catch (err) {
-          console.error("session:complete socket error:", err);
+          socketLogger.error({ err, data }, "session:complete error");
         }
       }
     );
 
-    // Direct message: save to DB + emit to recipient
     socket.on(
       "chat:send",
       async (data: { senderId: string; receiverId: string; body: string }) => {
@@ -135,11 +125,10 @@ export async function initSocket(httpServer: HttpServer, frontendUrl: string) {
             },
           });
 
-          // Send to both sender (confirmation) and receiver (new message)
           io.to(`user:${data.senderId}`).emit("chat:message", msg);
           io.to(`user:${data.receiverId}`).emit("chat:message", msg);
         } catch (err) {
-          console.error("chat:send socket error:", err);
+          socketLogger.error({ err }, "chat:send error");
         }
       }
     );
@@ -151,14 +140,13 @@ export async function initSocket(httpServer: HttpServer, frontendUrl: string) {
           break;
         }
       }
-      console.log(`Socket disconnected: ${socket.id}`);
+      socketLogger.debug({ socketId: socket.id }, "Socket disconnected");
     });
   });
 
   return io;
 }
 
-// Helper to emit to a specific user from anywhere in the app
 export function emitToUser(userId: string, event: string, data: unknown) {
   io?.to(`user:${userId}`).emit(event, data);
 }

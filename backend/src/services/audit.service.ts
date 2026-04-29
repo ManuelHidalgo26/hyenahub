@@ -1,7 +1,9 @@
 import fs from "fs";
 import path from "path";
+import logger from "./logger.service";
 
 const LOG_FILE = path.join(process.cwd(), "logs", "audit.log");
+const auditLogger = logger.child({ module: "audit" });
 
 export type AuditAction =
   | "USER_DELETED"
@@ -21,11 +23,9 @@ interface AuditEntry {
 }
 
 export function auditLog(entry: Omit<AuditEntry, "timestamp">) {
-  const line = JSON.stringify({ timestamp: new Date().toISOString(), ...entry });
-  // Escribe en consola siempre
-  console.log(`[AUDIT] ${line}`);
-  // Escribe en archivo (sin bloquear)
-  fs.appendFile(LOG_FILE, line + "\n", err => {
-    if (err) console.error("[AUDIT] Error escribiendo log:", err);
+  const record: AuditEntry = { timestamp: new Date().toISOString(), ...entry };
+  auditLogger.info(record);
+  fs.appendFile(LOG_FILE, JSON.stringify(record) + "\n", err => {
+    if (err) auditLogger.error({ err }, "Failed to write audit log to file");
   });
 }

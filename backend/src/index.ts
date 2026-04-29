@@ -5,6 +5,7 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { initSocket } from "./socket";
+import logger from "./services/logger.service";
 import authRoutes    from "./routes/auth.routes";
 import trainerRoutes from "./routes/trainer.routes";
 import routineRoutes from "./routes/routine.routes";
@@ -21,7 +22,7 @@ import messageRoutes   from "./routes/message.routes";
 const REQUIRED_ENV = ["DATABASE_URL", "JWT_SECRET"];
 for (const key of REQUIRED_ENV) {
   if (!process.env[key]) {
-    console.error(`❌  Missing required env variable: ${key}`);
+    logger.fatal({ env: key }, "Missing required environment variable");
     process.exit(1);
   }
 }
@@ -34,13 +35,12 @@ const PORT = process.env.PORT || 4000;
 
 // ─── Middlewares ─────────────────────────────────────────────────────────────
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }, // permite que el frontend cargue recursos
-  contentSecurityPolicy: false, // CSP lo maneja Next.js en el frontend
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: false,
 }));
 app.use(cors({ origin: FRONTEND_URL, credentials: true }));
-app.use(express.json({ limit: "3mb" })); // 3mb for base64 avatar images
+app.use(express.json({ limit: "3mb" }));
 
-// Rate limiter general — 200 req / 15 min por IP
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
@@ -49,7 +49,6 @@ const globalLimiter = rateLimit({
   message: { success: false, error: "Demasiadas solicitudes. Intenta en 15 minutos." },
 });
 
-// Rate limiter estricto para auth — 20 req / 15 min por IP
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
@@ -61,41 +60,37 @@ const authLimiter = rateLimit({
 app.use("/api", globalLimiter);
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
-app.use("/api/auth",    authLimiter, authRoutes);
-app.use("/api/trainer", trainerRoutes);
-app.use("/api/routines", routineRoutes);
-app.use("/api/admin",   adminRoutes);
-app.use("/api/ai",      aiRoutes);
-app.use("/api/videos",  videoRoutes);
-app.use("/api/profile", profileRoutes);
-app.use("/api/diets",    dietRoutes);
-app.use("/api/feedback",   feedbackRoutes);
-app.use("/api/templates",  templateRoutes);
-app.use("/api/messages",   messageRoutes);
+app.use("/api/auth",      authLimiter, authRoutes);
+app.use("/api/trainer",   trainerRoutes);
+app.use("/api/routines",  routineRoutes);
+app.use("/api/admin",     adminRoutes);
+app.use("/api/ai",        aiRoutes);
+app.use("/api/videos",    videoRoutes);
+app.use("/api/profile",   profileRoutes);
+app.use("/api/diets",     dietRoutes);
+app.use("/api/feedback",  feedbackRoutes);
+app.use("/api/templates", templateRoutes);
+app.use("/api/messages",  messageRoutes);
 
-// Health check
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// 404 handler
 app.use((_req, res) => {
   res.status(404).json({ success: false, error: "Ruta no encontrada" });
 });
 
-// Global error handler
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error(err.stack);
+  logger.error({ err }, "Unhandled error");
   res.status(500).json({ success: false, error: "Error interno del servidor" });
 });
 
 // ─── Socket.io + Server start ────────────────────────────────────────────────
 initSocket(httpServer, FRONTEND_URL).then(() => {
   httpServer.listen(PORT, () => {
-    console.log(`🚀 TrainerHub API running on http://localhost:${PORT}`);
-    console.log(`🌍 Frontend URL: ${FRONTEND_URL}`);
-    console.log(`📡 Socket.io ready`);
-    console.log(`🔒 Rate limiting: global 200/15min, auth 20/15min`);
-    console.log(`🛡️  Helmet security headers active`);
+    logger.info(
+      { port: PORT, frontendUrl: FRONTEND_URL },
+      "HyenaHub API started"
+    );
   });
 });
