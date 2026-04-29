@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import api from "@/lib/api";
+import { ErrorBanner } from "@/components/ErrorBanner";
 
 interface ExerciseSummary { id: string; completed: boolean; }
 interface RoutineSummary  { id: string; weekStart: string; exercises: ExerciseSummary[]; }
@@ -34,19 +35,25 @@ const EXP_FILTERS = [
 
 export default function TrainerDashboard() {
   const { data: session } = useSession();
-  const [stats,   setStats]   = useState<Stats | null>(null);
-  const [clients, setClients] = useState<ClientCard[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search,  setSearch]  = useState("");
+  const [stats,     setStats]     = useState<Stats | null>(null);
+  const [clients,   setClients]   = useState<ClientCard[]>([]);
+  const [loading,   setLoading]   = useState(true);
+  const [fetchErr,  setFetchErr]  = useState("");
+  const [search,    setSearch]    = useState("");
   const [expFilter, setExpFilter] = useState("");
 
-  useEffect(() => {
+  function load() {
+    setLoading(true); setFetchErr("");
     Promise.all([api.get("/trainer/dashboard"), api.get("/trainer/clients")])
       .then(([s, c]) => { setStats(s.data.data); setClients(c.data.data); })
+      .catch(() => setFetchErr("No se pudo cargar el dashboard. Verificá tu conexión."))
       .finally(() => setLoading(false));
-  }, []);
+  }
 
-  if (loading) return <Loader text="Cargando dashboard..." />;
+  useEffect(() => { load(); }, []);
+
+  if (loading)  return <Loader text="Cargando dashboard..." />;
+  if (fetchErr) return <ErrorBanner message={fetchErr} onRetry={load} />;
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Buenos días" : hour < 18 ? "Buenas tardes" : "Buenas noches";

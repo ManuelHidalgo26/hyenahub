@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
+import { ErrorBanner } from "@/components/ErrorBanner";
 
 interface Stats {
   totalUsers: number; totalTrainers: number; totalClients: number;
@@ -37,17 +38,19 @@ const STAT_CARDS = [
 type Tab = "users" | "trainers";
 
 export default function AdminDashboard() {
-  const [stats,    setStats]    = useState<Stats | null>(null);
-  const [trainers, setTrainers] = useState<TrainerRow[]>([]);
-  const [users,    setUsers]    = useState<UserRow[]>([]);
-  const [loading,  setLoading]  = useState(true);
-  const [tab,      setTab]      = useState<Tab>("users");
-  const [search,   setSearch]   = useState("");
+  const [stats,     setStats]     = useState<Stats | null>(null);
+  const [trainers,  setTrainers]  = useState<TrainerRow[]>([]);
+  const [users,     setUsers]     = useState<UserRow[]>([]);
+  const [loading,   setLoading]   = useState(true);
+  const [fetchErr,  setFetchErr]  = useState("");
+  const [tab,       setTab]       = useState<Tab>("users");
+  const [search,    setSearch]    = useState("");
   const [roleFilter, setRoleFilter] = useState<"" | "ADMIN" | "TRAINER" | "CLIENT">("");
-  const [deleting, setDeleting] = useState<string | null>(null);
+  const [deleting,  setDeleting]  = useState<string | null>(null);
+  const [deleteErr, setDeleteErr] = useState("");
 
   function load() {
-    setLoading(true);
+    setLoading(true); setFetchErr("");
     Promise.all([
       api.get("/admin/stats"),
       api.get("/admin/trainers"),
@@ -56,17 +59,21 @@ export default function AdminDashboard() {
       setStats(s.data.data);
       setTrainers(t.data.data);
       setUsers(u.data.data);
-    }).finally(() => setLoading(false));
+    })
+    .catch(() => setFetchErr("No se pudo cargar el panel. Verificá tu conexión."))
+    .finally(() => setLoading(false));
   }
 
   useEffect(() => { load(); }, []);
 
   async function handleDelete(userId: string, name: string) {
     if (!confirm(`¿Eliminar permanentemente al usuario "${name}"? Esta acción no se puede deshacer.`)) return;
-    setDeleting(userId);
+    setDeleting(userId); setDeleteErr("");
     try {
       await api.delete(`/admin/users/${userId}`);
       setUsers(prev => prev.filter(u => u.id !== userId));
+    } catch {
+      setDeleteErr(`No se pudo eliminar a "${name}". Intentá de nuevo.`);
     } finally {
       setDeleting(null);
     }
@@ -79,7 +86,8 @@ export default function AdminDashboard() {
     return matchSearch && matchRole;
   });
 
-  if (loading) return <LoadingScreen />;
+  if (loading)  return <LoadingScreen />;
+  if (fetchErr) return <ErrorBanner message={fetchErr} onRetry={load} />;
 
   return (
     <div className="min-h-full p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
@@ -119,6 +127,12 @@ export default function AdminDashboard() {
       {/* Users tab */}
       {tab === "users" && (
         <div className="animate-slide-up-sm">
+          {deleteErr && (
+            <div className="mb-4 text-sm text-red-400 bg-red-500/10 border border-red-500/20 px-4 py-3 rounded-xl flex items-center justify-between gap-3">
+              {deleteErr}
+              <button onClick={() => setDeleteErr("")} className="text-red-500 hover:text-red-300 shrink-0">✕</button>
+            </div>
+          )}
           {/* Filters */}
           <div className="flex flex-col sm:flex-row gap-3 mb-4">
             <div className="relative flex-1">

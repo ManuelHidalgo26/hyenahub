@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import api from "@/lib/api";
+import { useNotifications } from "@/components/NotificationProvider";
 
 /* ─── Types ────────────────────────────────────────────────────────────────── */
 interface ClientDetail {
@@ -90,6 +91,7 @@ const EQ:  Record<string, string> = { none: "Sin equipo", home: "Casa", gym: "Gy
 export default function ClientDetailPage() {
   const { clientId } = useParams<{ clientId: string }>();
   const router = useRouter();
+  const { addToast } = useNotifications();
   const [client,     setClient]     = useState<ClientDetail | null>(null);
   const [loading,    setLoading]    = useState(true);
   const [activeTab,  setActiveTab]  = useState<"routines" | "diet">("routines");
@@ -182,6 +184,7 @@ export default function ClientDetailPage() {
     setLoadingDiets(true);
     api.get(`/diets/client/${clientId}`)
       .then(r => setDiets(r.data.data))
+      .catch(() => addToast({ type: "warning", title: "Error", message: "No se pudieron cargar las dietas." }))
       .finally(() => setLoadingDiets(false));
   }, [activeTab, clientId]);
 
@@ -257,8 +260,12 @@ export default function ClientDetailPage() {
   }
 
   async function deleteTemplate(id: string) {
-    await api.delete(`/templates/${id}`);
-    setTemplates(p => p.filter(t => t.id !== id));
+    try {
+      await api.delete(`/templates/${id}`);
+      setTemplates(p => p.filter(t => t.id !== id));
+    } catch {
+      addToast({ type: "warning", title: "Error", message: "No se pudo eliminar el template." });
+    }
   }
 
   // Diet helpers
@@ -310,8 +317,12 @@ export default function ClientDetailPage() {
 
   async function deleteDiet(id: string) {
     if (!confirm("¿Eliminar esta dieta?")) return;
-    await api.delete(`/diets/${id}`);
-    setDiets(p => p.filter(d => d.id !== id));
+    try {
+      await api.delete(`/diets/${id}`);
+      setDiets(p => p.filter(d => d.id !== id));
+    } catch {
+      addToast({ type: "warning", title: "Error", message: "No se pudo eliminar la dieta." });
+    }
   }
 
   async function loadDietTemplatesList() {
@@ -444,8 +455,12 @@ export default function ClientDetailPage() {
 
   async function deleteRoutine(id: string) {
     if (!confirm("¿Eliminar esta rutina?")) return;
-    await api.delete(`/routines/${id}`);
-    setClient(p => p ? { ...p, routines: p.routines.filter(r => r.id !== id) } : p);
+    try {
+      await api.delete(`/routines/${id}`);
+      setClient(p => p ? { ...p, routines: p.routines.filter(r => r.id !== id) } : p);
+    } catch {
+      addToast({ type: "warning", title: "Error", message: "No se pudo eliminar la rutina." });
+    }
   }
 
   if (loading) return <LoadingScreen />;
