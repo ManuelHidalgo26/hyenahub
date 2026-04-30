@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="96" fill="#09090b"/>
+  <circle cx="256" cy="256" r="200" fill="#18181b"/>
+  <!-- H letter mark -->
+  <rect x="148" y="152" width="52" height="208" rx="12" fill="#f97316"/>
+  <rect x="312" y="152" width="52" height="208" rx="12" fill="#f97316"/>
+  <rect x="148" y="230" width="216" height="52" rx="10" fill="#f97316"/>
+  <!-- Orange accent dot -->
+  <circle cx="256" cy="420" r="16" fill="#fb923c" opacity="0.6"/>
+</svg>
