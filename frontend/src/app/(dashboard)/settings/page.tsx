@@ -27,6 +27,8 @@ export default function SettingsPage() {
     setAvatarSaving(true);
     try {
       await api.patch("/profile/avatar", { avatar: avatarUrl });
+      // Sync to NextAuth session — base64 is skipped to avoid cookie size limit (Vercel 494)
+      await updateSession({ avatar: avatarUrl.startsWith("data:") ? undefined : (avatarUrl || null) });
       addToast({ type: "success", title: "Foto actualizada", message: "Tu foto de perfil fue guardada correctamente." });
     } catch {
       addToast({ type: "warning", title: "Error", message: "No se pudo actualizar la foto. Verificá el formato." });
@@ -99,8 +101,8 @@ export default function SettingsPage() {
     setPwdError("");
     setPwdSuccess(false);
 
-    if (newPwd.length < 6) {
-      setPwdError("La nueva contraseña debe tener al menos 6 caracteres.");
+    if (newPwd.length < 8 || !/[A-Z]/.test(newPwd) || !/[0-9]/.test(newPwd)) {
+      setPwdError("La nueva contraseña debe tener al menos 8 caracteres, una mayúscula y un número.");
       return;
     }
     if (newPwd !== confirmPwd) {
@@ -298,7 +300,7 @@ export default function SettingsPage() {
               type="password"
               value={newPwd}
               onChange={e => { setNewPwd(e.target.value); setPwdError(""); }}
-              placeholder="Mínimo 6 caracteres"
+              placeholder="Mín. 8 caracteres, 1 mayúscula y 1 número"
               autoComplete="new-password"
               className="input-dark"
             />

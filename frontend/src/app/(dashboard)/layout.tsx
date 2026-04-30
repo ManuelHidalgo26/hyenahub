@@ -69,11 +69,17 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  const avatar = session?.user?.avatar;
   const AvatarDisplay = ({ size = 8 }: { size?: number }) => (
     <div className={`w-${size} h-${size} rounded-full overflow-hidden ring-1 ring-orange-500/30 shrink-0`}>
-      <div className="w-full h-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white font-black" style={{ fontSize: size < 9 ? "0.65rem" : "0.75rem" }}>
-        {initial}
-      </div>
+      {avatar ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={avatar} alt={name} className="w-full h-full object-cover" onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.style.display = "none"; }} />
+      ) : (
+        <div className="w-full h-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white font-black" style={{ fontSize: size < 9 ? "0.65rem" : "0.75rem" }}>
+          {initial}
+        </div>
+      )}
     </div>
   );
 

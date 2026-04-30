@@ -48,7 +48,11 @@ export const authOptions: NextAuthOptions = {
         token.id        = user.id;
         token.role      = (user as { role: Role }).role;
         token.profileId = (user as { profileId: string }).profileId;
-        // avatar is NOT stored in JWT — base64 images make the cookie too large (Vercel 494 error)
+      }
+      if (trigger === "update") {
+        if ("name" in session)   token.name   = session.name;
+        // Only store URL avatars in JWT — base64 strings bloat the cookie past 4KB (Vercel 494)
+        if ("avatar" in session) token.avatar = typeof session.avatar === "string" && session.avatar.startsWith("data:") ? token.avatar : session.avatar;
       }
       return token;
     },
@@ -58,6 +62,7 @@ export const authOptions: NextAuthOptions = {
         session.user.id        = token.id        as string;
         session.user.role      = token.role      as Role;
         session.user.profileId = token.profileId as string;
+        session.user.avatar    = token.avatar    as string | null | undefined;
       }
       return session;
     },
