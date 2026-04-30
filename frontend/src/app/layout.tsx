@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     title: "HyenaHub",
     startupImage: [
       {
-        url: "/icons/apple-touch-icon.svg",
+        url: "/icons/apple-touch-icon.png",
         media:
           "(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)",
       },
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
       { url: "/icons/hyena-icon.svg", sizes: "any", type: "image/svg+xml" },
     ],
     apple: [
-      { url: "/icons/apple-touch-icon.svg", sizes: "180x180", type: "image/svg+xml" },
+      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
     ],
     other: [
       { rel: "mask-icon", url: "/icons/maskable-icon.svg", color: "#f97316" },

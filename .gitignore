@@ -5,3 +5,9 @@ dist/
 .next/
 *.log
 .DS_Store
+
+# Archivos generados por @ducanh2912/next-pwa en build
+frontend/public/sw.js
+frontend/public/sw.js.map
+frontend/public/workbox-*.js
+frontend/public/workbox-*.js.map
