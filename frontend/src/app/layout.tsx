@@ -67,8 +67,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es">
       <head>
-        {/* Preload del manifest para iOS */}
         <link rel="manifest" href="/manifest.json" />
+        {/*
+          Captura beforeinstallprompt ANTES de que React monte.
+          El evento puede dispararse mientras el browser parsea el HTML
+          inicial, mucho antes de que useEffect se ejecute.
+          Lo guardamos en window.__pwaPrompt para que el hook lo lea.
+        */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          window.addEventListener('beforeinstallprompt', function(e) {
+            e.preventDefault();
+            window.__pwaPrompt = e;
+          }, { once: true });
+        `}} />
       </head>
       <body className={inter.className}>
         <Providers>{children}</Providers>

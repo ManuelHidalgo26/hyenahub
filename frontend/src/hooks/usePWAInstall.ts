@@ -7,24 +7,42 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 }
 
+declare global {
+  interface Window {
+    __pwaPrompt?: BeforeInstallPromptEvent;
+  }
+}
+
 export interface PWAInstallState {
-  /** true si el browser soporta beforeinstallprompt y la app no está instalada */
   canInstall: boolean;
-  /** true si la app ya corre en modo standalone */
   isInstalled: boolean;
-  /** true si el dispositivo es iOS (iPad/iPhone/iPod) */
   isIOS: boolean;
-  /** true si es iOS Safari — no soporta beforeinstallprompt, hay que dar instrucciones manuales */
   isIOSSafari: boolean;
-  /** Disparar el prompt nativo del browser */
   install: () => Promise<void>;
-  /** El usuario descartó el banner; se guarda en localStorage */
   dismiss: () => void;
-  /** true si el usuario ya descartó el banner */
   isDismissed: boolean;
 }
 
 const DISMISSED_KEY = 'hyenahub-pwa-install-dismissed';
+
+function detectIOS(): { isIOS: boolean; isIOSSafari: boolean } {
+  const ua = navigator.userAgent;
+
+  // iOS clásico: iPhone, iPod, iPad (iOS 12 y anteriores)
+  const classicIOS = /iPad|iPhone|iPod/.test(ua);
+
+  // iPad iOS 13+ reporta UA de macOS escritorio — detectar por touch points
+  const modernIPad =
+    navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+
+  const isIOS = (classicIOS || modernIPad) && !(window as unknown as { MSStream?: unknown }).MSStream;
+
+  // Safari en iOS: no tiene CriOS (Chrome), FxiOS (Firefox) ni EdgiOS (Edge)
+  const isIOSSafari =
+    isIOS && /^((?!chrome|crios|fxios|edgios|android).)*safari/i.test(ua);
+
+  return { isIOS, isIOSSafari };
+}
 
 export function usePWAInstall(): PWAInstallState {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -34,25 +52,28 @@ export function usePWAInstall(): PWAInstallState {
   const [isIOSSafari, setIsIOSSafari] = useState(false);
 
   useEffect(() => {
-    // Leer estado de localStorage
+    // Estado persistido
     setIsDismissed(localStorage.getItem(DISMISSED_KEY) === 'true');
 
-    // Detectar iOS
-    const ua = navigator.userAgent;
-    const ios = /iPad|iPhone|iPod/.test(ua) && !(window as Window & { MSStream?: unknown }).MSStream;
-    // Safari en iOS: no tiene "Chrome" ni "CriOS" ni "FxiOS" en el UA
-    const iosSafari = ios && /^((?!chrome|crios|fxios|android).)*safari/i.test(ua);
+    // Detección de plataforma
+    const { isIOS: ios, isIOSSafari: iosSafari } = detectIOS();
     setIsIOS(ios);
     setIsIOSSafari(iosSafari);
 
-    // Detectar si ya está instalada (standalone o navigator.standalone en iOS)
-    const standaloneMedia = window.matchMedia('(display-mode: standalone)');
+    // ¿Ya está instalada?
     const alreadyInstalled =
-      standaloneMedia.matches ||
+      window.matchMedia('(display-mode: standalone)').matches ||
       (navigator as Navigator & { standalone?: boolean }).standalone === true;
     setIsInstalled(alreadyInstalled);
 
-    // Capturar el evento beforeinstallprompt (Chrome/Edge/Android)
+    // Leer evento pre-capturado por el script en <head>
+    // (se dispara antes de que React monte, lo guardamos en window.__pwaPrompt)
+    if (window.__pwaPrompt) {
+      setDeferredPrompt(window.__pwaPrompt);
+      delete window.__pwaPrompt;
+    }
+
+    // Seguir escuchando por si llega después del montaje
     const handleBeforeInstall = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
@@ -76,9 +97,7 @@ export function usePWAInstall(): PWAInstallState {
     if (!deferredPrompt) return;
     await deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setIsInstalled(true);
-    }
+    if (outcome === 'accepted') setIsInstalled(true);
     setDeferredPrompt(null);
   };
 
