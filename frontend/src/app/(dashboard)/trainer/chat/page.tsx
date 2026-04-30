@@ -42,9 +42,14 @@ export default function TrainerChatPage() {
   }, [selected]);
 
   // Pusher: subscribe to trainer's private channel for incoming messages
+  const pusherConnectedRef = useRef(false);
   useEffect(() => {
     if (!myId) return;
     const pusher = getPusherClient();
+    pusher.connection.bind("state_change", ({ current }: { current: string }) => {
+      pusherConnectedRef.current = current === "connected";
+    });
+    pusherConnectedRef.current = pusher.connection.state === "connected";
     const channel = pusher.subscribe(`private-user-${myId}`);
     channel.bind("message.new", (msg: Message) => {
       const currentSelected = selectedRef.current;
@@ -55,9 +60,10 @@ export default function TrainerChatPage() {
     return () => { pusher.unsubscribe(`private-user-${myId}`); };
   }, [myId]);
 
-  // Polling fallback: sync every 3s in case Pusher auth fails
+  // Polling fallback: only runs when Pusher is not connected
   useEffect(() => {
     const interval = setInterval(() => {
+      if (pusherConnectedRef.current) return;
       const sel = selectedRef.current;
       if (!sel) return;
       api.get(`/messages/${sel.user.id}`).then(r => {

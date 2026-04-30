@@ -18,6 +18,7 @@ const createRoutineSchema = z.object({
   clientId: z.string(),
   weekStart: z.string().datetime(),
   notes: z.string().optional(),
+  durationWeeks: z.number().int().positive().nullable().optional(),
   exercises: z.array(exerciseSchema).min(1),
 });
 
@@ -29,7 +30,7 @@ export async function createRoutine(req: AuthRequest, res: Response) {
     return;
   }
 
-  const { clientId, weekStart, notes, exercises } = parsed.data;
+  const { clientId, weekStart, notes, durationWeeks, exercises } = parsed.data;
 
   // Verify the client belongs to this trainer
   const client = await prisma.client.findFirst({
@@ -46,6 +47,7 @@ export async function createRoutine(req: AuthRequest, res: Response) {
       clientId,
       weekStart: new Date(weekStart),
       notes,
+      durationWeeks,
       exercises: {
         create: exercises.map((ex, i) => ({ ...ex, order: ex.order ?? i })),
       },
