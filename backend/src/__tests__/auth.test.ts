@@ -96,6 +96,24 @@ describe("POST /api/auth/register", () => {
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
   });
+
+  it("rechaza contraseña débil (sin mayúscula ni número)", async () => {
+    const res = await supertest(app).post("/api/auth/register").send({
+      name: "Carlos", email: "weak@test.com", password: "debilpassword", role: "TRAINER",
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
+
+  it("rechaza contraseña corta (menos de 8 chars)", async () => {
+    const res = await supertest(app).post("/api/auth/register").send({
+      name: "Carlos", email: "short@test.com", password: "Ab1!", role: "TRAINER",
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
 });
 
 // ─── POST /api/auth/login ────────────────────────────────────────────────────

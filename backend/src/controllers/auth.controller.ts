@@ -9,7 +9,10 @@ import { AuthRequest } from "../types";
 
 const registerSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(6),
+  password: z.string().min(8).refine(
+    p => /[A-Z]/.test(p) && /[0-9]/.test(p),
+    { message: "La contraseña debe tener al menos 8 caracteres, una mayúscula y un número" }
+  ),
   name: z.string().min(2),
   role: z.enum(["TRAINER", "CLIENT"]),
   trainerId: z.string().optional(),
