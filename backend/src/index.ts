@@ -29,15 +29,31 @@ for (const key of REQUIRED_ENV) {
 const app = express();
 const httpServer = http.createServer(app);
 
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 const PORT = process.env.PORT || 4000;
+
+// Support comma-separated list of allowed origins, e.g. "https://hyenahub.app,http://localhost:3000"
+const ALLOWED_ORIGINS: string[] = (
+  process.env.ALLOWED_ORIGINS || process.env.FRONTEND_URL || "http://localhost:3000"
+)
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
 
 // ─── Middlewares ─────────────────────────────────────────────────────────────
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }, // permite que el frontend cargue recursos
-  contentSecurityPolicy: false, // CSP lo maneja Next.js en el frontend
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: false,
 }));
-app.use(cors({ origin: FRONTEND_URL, credentials: true }));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, server-to-server)
+      if (!origin || ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+      callback(new Error(`CORS: origin ${origin} not allowed`));
+    },
+    credentials: true,
+  })
+);
 app.use(express.json({ limit: "3mb" })); // 3mb for base64 avatar images
 
 // Rate limiter general — 200 req / 15 min por IP
@@ -90,10 +106,10 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 });
 
 // ─── Socket.io + Server start ────────────────────────────────────────────────
-initSocket(httpServer, FRONTEND_URL).then(() => {
+initSocket(httpServer, ALLOWED_ORIGINS).then(() => {
   httpServer.listen(PORT, () => {
-    console.log(`🚀 TrainerHub API running on http://localhost:${PORT}`);
-    console.log(`🌍 Frontend URL: ${FRONTEND_URL}`);
+    console.log(`🚀 HyenaHub API running on http://localhost:${PORT}`);
+    console.log(`🌍 Allowed origins: ${ALLOWED_ORIGINS.join(", ")}`);
     console.log(`📡 Socket.io ready`);
     console.log(`🔒 Rate limiting: global 200/15min, auth 20/15min`);
     console.log(`🛡️  Helmet security headers active`);
