@@ -16,7 +16,7 @@ interface WeeklyFeedback {
   id: string; rating: number; comment: string | null;
 }
 interface Routine {
-  id: string; weekStart: string; notes: string | null; exercises: Exercise[];
+  id: string; weekStart: string; createdAt: string; notes: string | null; exercises: Exercise[];
   client?: { trainerId: string };
   feedback?: WeeklyFeedback | null;
 }
@@ -243,12 +243,11 @@ function VideoPlayer({ url }: { url: string }) {
 }
 
 /* ─── Routine Card ────────────────────────────────────────────────────────────── */
-function RoutineCard({ routine, onToggle, onNote, readonly, badge, clientName, videoMap, onFeedbackSaved }: {
+function RoutineCard({ routine, onToggle, onNote, readonly, clientName, videoMap, onFeedbackSaved }: {
   routine: Routine;
   onToggle?: (id: string) => Promise<void>;
   onNote?: (id: string, note: string) => Promise<void>;
   readonly?: boolean;
-  badge?: React.ReactNode;
   clientName?: string;
   videoMap?: Record<string, TrainerVideo>;
   onFeedbackSaved?: (routineId: string, fb: WeeklyFeedback) => void;
@@ -257,11 +256,9 @@ function RoutineCard({ routine, onToggle, onNote, readonly, badge, clientName, v
   const total = routine.exercises.length;
   const p     = total > 0 ? Math.round((done / total) * 100) : 0;
 
-  function formatRange(s: string) {
-    const start = new Date(s);
-    const end   = new Date(start);
-    end.setDate(start.getDate() + 6);
-    return `${start.toLocaleDateString("es-AR", { day: "numeric", month: "short" })} – ${end.toLocaleDateString("es-AR", { day: "numeric", month: "short" })}`;
+  function formatDate(s: string) {
+    const d = new Date(s);
+    return d.toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" });
   }
 
   return (
@@ -275,11 +272,8 @@ function RoutineCard({ routine, onToggle, onNote, readonly, badge, clientName, v
       {/* Header */}
       <div className="px-5 py-4 border-b border-white/[0.04] flex items-center justify-between gap-2">
         <div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-semibold text-white">{formatRange(routine.weekStart)}</span>
-            {badge}
-          </div>
-          {routine.notes && <p className="text-xs text-zinc-500 mt-0.5">{routine.notes}</p>}
+          <span className="text-xs text-zinc-500 font-medium">Actualizado el {formatDate(routine.createdAt)}</span>
+          {routine.notes && <p className="text-sm text-zinc-300 mt-1">{routine.notes}</p>}
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <div className="text-right">
@@ -340,7 +334,6 @@ export default function ClientDashboard() {
   const [videoMap,  setVideoMap]  = useState<Record<string, TrainerVideo>>({});
   const [loading,   setLoading]   = useState(true);
   const [fetchErr,  setFetchErr]  = useState("");
-  const [tab,       setTab]       = useState<"current" | "previous">("current");
   const sessionFiredRef = useRef(false);
 
   function load() {
@@ -414,8 +407,7 @@ export default function ClientDashboard() {
     });
   }
 
-  const current  = routines[0] ?? null;
-  const previous = routines[1] ?? null;
+  const current = routines[0] ?? null;
   const done  = current?.exercises.filter(e => e.completed).length ?? 0;
   const total = current?.exercises.length ?? 0;
   const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
@@ -460,52 +452,21 @@ export default function ClientDashboard() {
         )}
       </div>
 
-      {/* Tabs */}
-      {(current || previous) && (
-        <div className="flex gap-1 bg-zinc-900/50 border border-white/[0.05] rounded-xl p-1 w-fit mb-5 animate-fade-in">
-          <TabBtn active={tab === "current"} onClick={() => setTab("current")}>Esta semana</TabBtn>
-          {previous && (
-            <TabBtn active={tab === "previous"} onClick={() => setTab("previous")}>Semana anterior</TabBtn>
-          )}
-        </div>
-      )}
-
-      {/* Content */}
-      <div className="animate-slide-up-sm" key={tab}>
-        {tab === "current" && (
-          current
-            ? <RoutineCard
-                routine={current}
-                onToggle={handleToggle}
-                onNote={handleNote}
-                clientName={session?.user?.name}
-                videoMap={videoMap}
-                onFeedbackSaved={handleFeedbackSaved}
-                badge={<span className="text-xs bg-orange-500/15 text-orange-400 border border-orange-500/20 px-2 py-0.5 rounded-full font-medium">Semana actual</span>}
-              />
-            : <EmptyState message="Sin rutina esta semana" sub="Tu entrenador todavía no asignó ejercicios para esta semana. ¡Pronto llegará!" />
-        )}
-
-        {tab === "previous" && previous && (
-          <div>
-            <RoutineCard
-              routine={previous}
-              readonly
+      {/* Rutina */}
+      <div className="animate-slide-up-sm">
+        {current
+          ? <RoutineCard
+              routine={current}
+              onToggle={handleToggle}
+              onNote={handleNote}
               clientName={session?.user?.name}
               videoMap={videoMap}
-              badge={<span className="text-xs bg-zinc-700/60 text-zinc-400 px-2 py-0.5 rounded-full font-medium">Semana pasada</span>}
+              onFeedbackSaved={handleFeedbackSaved}
             />
-            <p className="text-xs text-zinc-600 text-center mt-3">Solo lectura — progreso de la semana pasada</p>
-          </div>
-        )}
+          : <EmptyState message="Sin rutina asignada" sub="Tu entrenador todavía no asignó ejercicios. ¡Pronto llegará!" />
+        }
       </div>
 
-      {routines.length === 0 && !loading && (
-        <EmptyState
-          message="Todavía no tenés rutinas asignadas"
-          sub="Cuando tu entrenador te asigne la primera rutina, aparecerá aquí con todos los ejercicios y tu progreso semanal."
-        />
-      )}
     </div>
   );
 }
@@ -625,17 +586,6 @@ function WeeklyRating({ routineId, initial, onSaved }: {
 }
 
 /* ─── Sub-components ─────────────────────────────────────────────────────────── */
-function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button onClick={onClick}
-      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-        active ? "bg-zinc-800 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-300"
-      }`}>
-      {children}
-    </button>
-  );
-}
-
 function EmptyState({ message, sub }: { message: string; sub?: string }) {
   return (
     <div className="border border-dashed border-white/10 rounded-2xl p-12 text-center animate-fade-in">
