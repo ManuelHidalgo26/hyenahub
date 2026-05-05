@@ -21,7 +21,8 @@ export async function GET() {
 
     return NextResponse.json({ success: true, data: result });
   } catch (err) {
-    console.error("[GET /api/auth/trainers]", err);
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[GET /api/trainers] ERROR:", msg);
     return NextResponse.json(
       { success: false, error: "Error interno del servidor" },
       { status: 500 }
