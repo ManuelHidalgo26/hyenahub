@@ -7,7 +7,9 @@
       "Bash(cat /c/Users/Hidal/OneDrive/Escritorio/Proyectos/TrainerHub/frontend/src/app/\\\\\\(dashboard\\\\\\)/client/page.tsx)",
       "Bash(cp \"C:/Users/Hidal/OneDrive/Escritorio/HyenaFuel/hyena-blanco-naranja.png\" \"C:/Users/Hidal/OneDrive/Escritorio/Proyectos/TrainerHub/frontend/public/hyena-logo.png\")",
       "Bash(cp \"C:/Users/Hidal/OneDrive/Escritorio/HyenaFuel/hyena.png\" \"C:/Users/Hidal/OneDrive/Escritorio/Proyectos/TrainerHub/frontend/src/app/icon.png\")",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "mcp__dbdc47de-4c38-4a65-adc9-e38ff7c53301__list_projects",
+      "mcp__dbdc47de-4c38-4a65-adc9-e38ff7c53301__list_tables"
     ]
   }
 }
