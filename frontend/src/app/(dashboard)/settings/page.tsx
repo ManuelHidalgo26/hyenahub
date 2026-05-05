@@ -155,7 +155,12 @@ export default function SettingsPage() {
           <div>
             <p className="text-xs text-zinc-600 mb-2">O usá un avatar generado:</p>
             <div className="flex gap-2 flex-wrap">
-              {["adventurer", "bottts", "pixel-art", "lorelei"].map(style => {
+              {([
+                { style: "adventurer", label: "Aventurero" },
+                { style: "bottts",     label: "Robot" },
+                { style: "pixel-art",  label: "Pixel Art" },
+                { style: "lorelei",    label: "Ilustración" },
+              ] as const).map(({ style, label }) => {
                 const url = `https://api.dicebear.com/7.x/${style}/svg?seed=${encodeURIComponent(name)}`;
                 return (
                   <button key={style} type="button"
@@ -165,7 +170,7 @@ export default function SettingsPage() {
                         ? "bg-orange-500/20 text-orange-400 border border-orange-500/30"
                         : "bg-zinc-800 text-zinc-400 hover:text-white border border-white/5"
                     }`}>
-                    {style}
+                    {label}
                   </button>
                 );
               })}
