@@ -39,7 +39,8 @@ export async function GET() {
 
     return NextResponse.json({ success: true, data: routines });
   } catch (err) {
-    console.error("[GET /api/routines/my]", err);
+    const msg = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+    console.error("[GET /api/routines/my]", msg);
     return NextResponse.json(
       { success: false, error: "Error interno del servidor" },
       { status: 500 }
