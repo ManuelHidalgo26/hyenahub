@@ -88,12 +88,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       if (!onChatPage) {
         addToast({
           type: "info",
-          title: `Nuevo mensaje de ${data.senderName ?? "tu entrenador"}`,
+          title: `Nuevo mensaje de ${data.senderName ?? "alguien"}`,
           message: data.body.length > 60 ? data.body.slice(0, 60) + "…" : data.body,
         });
         // Browser notification if permitted
         if (typeof window !== "undefined" && Notification?.permission === "granted") {
-          new Notification(`Mensaje de ${data.senderName ?? "HyenaHub"}`, {
+          new Notification(`Mensaje de ${data.senderName ?? "alguien"}`, {
             body: data.body.length > 80 ? data.body.slice(0, 80) + "…" : data.body,
             icon: "/icon.png",
           });

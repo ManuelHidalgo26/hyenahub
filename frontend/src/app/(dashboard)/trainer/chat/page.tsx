@@ -20,6 +20,7 @@ function Avatar({ name, size = 8 }: { name: string; size?: number }) {
 export default function TrainerChatPage() {
   const { data: session } = useSession();
   const [clients,  setClients]  = useState<ClientEntry[]>([]);
+  const [search,   setSearch]   = useState("");
   const [selected, setSelected] = useState<ClientEntry | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input,    setInput]    = useState("");
@@ -125,6 +126,17 @@ export default function TrainerChatPage() {
         <div className="px-4 py-4 border-b border-white/[0.06]">
           <h1 className="text-lg font-black text-white">Mensajes</h1>
           <p className="text-xs text-zinc-500 mt-0.5">Conversaciones con clientes</p>
+          <div className="mt-3 relative">
+            <svg className="w-3.5 h-3.5 text-zinc-600 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 111 11a6 6 0 0116 0z" />
+            </svg>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar alumno..."
+              className="w-full bg-zinc-800/60 border border-white/[0.06] rounded-lg pl-8 pr-3 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-orange-500/30 transition-colors"
+            />
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto py-2">
           {loading ? (
@@ -133,8 +145,15 @@ export default function TrainerChatPage() {
             </div>
           ) : clients.length === 0 ? (
             <p className="text-xs text-zinc-600 text-center mt-6 px-4">No tenés clientes aún.</p>
-          ) : (
-            clients.map(c => (
+          ) : (() => {
+              const filtered = clients.filter(c =>
+                c.user.name.toLowerCase().includes(search.toLowerCase()) ||
+                c.user.email.toLowerCase().includes(search.toLowerCase())
+              );
+              if (filtered.length === 0) return (
+                <p className="text-xs text-zinc-600 text-center mt-6 px-4">Sin resultados para &ldquo;{search}&rdquo;</p>
+              );
+              return filtered.map(c => (
               <button key={c.id} onClick={() => setSelected(c)}
                 className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
                   selected?.id === c.id ? "bg-orange-500/10 border-r-2 border-orange-500" : "hover:bg-white/[0.03]"
@@ -145,7 +164,8 @@ export default function TrainerChatPage() {
                   <p className="text-xs text-zinc-600 truncate">{c.user.email}</p>
                 </div>
               </button>
-            ))
+            ));
+          })()
           )}
         </div>
       </aside>

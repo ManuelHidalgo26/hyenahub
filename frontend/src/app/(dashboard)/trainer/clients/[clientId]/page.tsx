@@ -105,11 +105,12 @@ export default function ClientDetailPage() {
   const [formError,        setFormError]        = useState("");
 
   // Templates
-  const [templates,     setTemplates]     = useState<RoutineTemplate[]>([]);
-  const [loadTemplates, setLoadTemplates] = useState(false);
-  const [showTemplates, setShowTemplates] = useState(false);
-  const [savingTpl,     setSavingTpl]     = useState(false);
-  const [tplName,       setTplName]       = useState("");
+  const [templates,         setTemplates]         = useState<RoutineTemplate[]>([]);
+  const [loadTemplates,     setLoadTemplates]     = useState(false);
+  const [showTemplates,     setShowTemplates]     = useState(false);
+  const [savingTpl,         setSavingTpl]         = useState(false);
+  const [tplName,           setTplName]           = useState("");
+  const [saveAlsoAsTpl,     setSaveAlsoAsTpl]     = useState(false);
 
   // Note modal
   const [noteModal,  setNoteModal]  = useState<{ exerciseName: string; note: string } | null>(null);
@@ -146,9 +147,10 @@ export default function ClientDetailPage() {
   const [dietError,  setDietError]  = useState("");
 
   // Diet templates
-  const [dietTemplates,     setDietTemplates]     = useState<DietTemplate[]>([]);
-  const [loadDietTemplates, setLoadDietTemplates] = useState(false);
-  const [showDietTemplates, setShowDietTemplates] = useState(false);
+  const [dietTemplates,         setDietTemplates]         = useState<DietTemplate[]>([]);
+  const [loadDietTemplates,     setLoadDietTemplates]     = useState(false);
+  const [showDietTemplates,     setShowDietTemplates]     = useState(false);
+  const [saveDietAlsoAsTpl,     setSaveDietAlsoAsTpl]     = useState(false);
 
   useEffect(() => {
     api.get(`/trainer/clients/${clientId}`)
@@ -279,9 +281,12 @@ export default function ClientDetailPage() {
         })),
       });
       setDiets(p => [res.data.data, ...p]);
+      // Also save as template if checkbox is checked
+      if (saveDietAlsoAsTpl) await saveAsDietTemplate();
       setShowDietForm(false);
       setDietName(""); setDietDesc(""); setDietCals(""); setDietProtein(""); setDietCarbs(""); setDietFat("");
       setMeals([{ ...EMPTY_MEAL }]);
+      setSaveDietAlsoAsTpl(false);
     } catch (err: unknown) {
       setDietError((err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? "Error al crear la dieta.");
     } finally {
@@ -387,6 +392,8 @@ export default function ClientDetailPage() {
         });
         const r = await api.get(`/trainer/clients/${clientId}`);
         setClient(r.data.data);
+        // Also save as template if checkbox is checked
+        if (saveAlsoAsTpl) await saveAsTemplate();
       }
       cancelForm();
     } catch (err: unknown) {
@@ -420,6 +427,7 @@ export default function ClientDetailPage() {
     setRoutineNote("");
     setExercises([{ ...EMPTY }]);
     setFormError("");
+    setSaveAlsoAsTpl(false);
   }
 
   async function deleteRoutine(id: string) {
@@ -741,13 +749,26 @@ export default function ClientDetailPage() {
             <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 px-4 py-2.5 rounded-xl">{formError}</p>
           )}
 
-          <div className="flex gap-3 pt-1">
-            <button type="submit" disabled={submitting} className="btn-primary">
-              {submitting ? (
-                <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Guardando...</>
-              ) : editingRoutineId ? "Guardar cambios" : "Guardar rutina"}
-            </button>
-            <button type="button" onClick={cancelForm} className="btn-ghost">Cancelar</button>
+          <div className="flex items-center justify-between gap-3 pt-1 flex-wrap">
+            <div className="flex gap-3">
+              <button type="submit" disabled={submitting} className="btn-primary">
+                {submitting ? (
+                  <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Guardando...</>
+                ) : editingRoutineId ? "Guardar cambios" : "Guardar rutina"}
+              </button>
+              <button type="button" onClick={cancelForm} className="btn-ghost">Cancelar</button>
+            </div>
+            {!editingRoutineId && (
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={saveAlsoAsTpl}
+                  onChange={e => setSaveAlsoAsTpl(e.target.checked)}
+                  className="w-3.5 h-3.5 accent-orange-500 cursor-pointer"
+                />
+                <span className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">También guardar como plantilla</span>
+              </label>
+            )}
           </div>
           <datalist id="exercise-suggestions">
             {EXERCISE_SUGGESTIONS.map(s => <option key={s} value={s} />)}
@@ -1024,13 +1045,24 @@ export default function ClientDetailPage() {
                   </button>
                   <button type="button" onClick={() => setShowDietForm(false)} className="btn-ghost">Cancelar</button>
                 </div>
-                <button type="button" onClick={saveAsDietTemplate}
-                  className="flex items-center gap-1.5 text-xs text-zinc-600 hover:text-orange-400 transition-colors border border-white/[0.06] hover:border-orange-500/30 px-3 py-1.5 rounded-lg bg-zinc-800/50">
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                  </svg>
-                  Guardar como template
-                </button>
+                <div className="flex items-center gap-4 flex-wrap">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={saveDietAlsoAsTpl}
+                      onChange={e => setSaveDietAlsoAsTpl(e.target.checked)}
+                      className="w-3.5 h-3.5 accent-orange-500 cursor-pointer"
+                    />
+                    <span className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">También guardar como plantilla</span>
+                  </label>
+                  <button type="button" onClick={saveAsDietTemplate}
+                    className="flex items-center gap-1.5 text-xs text-zinc-600 hover:text-orange-400 transition-colors border border-white/[0.06] hover:border-orange-500/30 px-3 py-1.5 rounded-lg bg-zinc-800/50">
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                    </svg>
+                    Guardar como plantilla ahora
+                  </button>
+                </div>
               </div>
             </form>
           )}
