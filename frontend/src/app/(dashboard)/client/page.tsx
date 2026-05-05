@@ -387,14 +387,18 @@ export default function ClientDashboard() {
     const updated: Exercise = res.data.data;
 
     setRoutines(prev => {
+      function patchEx(ex: Exercise) {
+        return ex.id === updated.id ? { ...ex, ...updated } : ex;
+      }
       const next = prev.map(r => ({
         ...r,
-        exercises: r.exercises.map(ex => ex.id === updated.id ? { ...ex, ...updated } : ex),
+        exercises: r.exercises.map(patchEx),
+        days: r.days.map(d => ({ ...d, exercises: d.exercises.map(patchEx) })),
       }));
 
       const current = next[0];
       if (current) {
-        const allDone = current.exercises.every(e => e.completed);
+        const allDone = getExercises(current).every(e => e.completed);
 
         if (allDone && !sessionFiredRef.current) {
           sessionFiredRef.current = true;
@@ -408,7 +412,6 @@ export default function ClientDashboard() {
       }
       return next;
     });
-
   }
 
   function handleFeedbackSaved(routineId: string, fb: WeeklyFeedback) {
@@ -421,7 +424,15 @@ export default function ClientDashboard() {
     setRoutines(prev =>
       prev.map(r => ({
         ...r,
-        exercises: r.exercises.map(ex => ex.id === updated.id ? { ...ex, clientNote: updated.clientNote } : ex),
+        exercises: r.exercises.map(ex =>
+          ex.id === updated.id ? { ...ex, clientNote: updated.clientNote } : ex
+        ),
+        days: r.days.map(d => ({
+          ...d,
+          exercises: d.exercises.map(ex =>
+            ex.id === updated.id ? { ...ex, clientNote: updated.clientNote } : ex
+          ),
+        })),
       }))
     );
     addToast({
