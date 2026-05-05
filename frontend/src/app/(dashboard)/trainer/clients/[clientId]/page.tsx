@@ -14,11 +14,13 @@ interface ClientDetail {
 interface Exercise {
   id: string; name: string; sets: number; reps: number;
   weight: number | null; notes: string | null; clientNote: string | null;
-  completed: boolean; order: number;
+  completed: boolean; order: number; dayId: string | null;
 }
+interface RoutineDay { id: string; name: string; order: number; exercises: Exercise[]; }
 interface WeeklyFeedback { rating: number; comment: string | null; }
 interface Routine {
-  id: string; weekStart: string; durationWeeks: number; notes: string | null; exercises: Exercise[];
+  id: string; weekStart: string; durationWeeks: number; notes: string | null;
+  exercises: Exercise[]; days: RoutineDay[];
   feedback?: WeeklyFeedback | null;
 }
 interface MealForm { name: string; time: string; foods: string; calories: string; protein: string; carbs: string; fat: string; notes: string; }
@@ -29,6 +31,7 @@ interface Diet {
   meals: { id: string; name: string; time: string | null; foods: string; calories: number | null; protein: number | null; carbs: number | null; fat: number | null; notes: string | null; order: number }[];
 }
 interface ExForm { name: string; sets: string; reps: string; weight: string; notes: string; }
+interface DayForm { name: string; exercises: ExForm[]; }
 interface RoutineTemplate {
   id: string; name: string; description: string | null; durationWeeks: number;
   exercises: { name: string; sets: number; reps: number; weight: number | null; notes: string | null; order: number }[];
@@ -78,7 +81,14 @@ function getMonday() {
 function formatWeek(s: string) {
   return new Date(s).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
 }
-function pct(exs: Exercise[]) {
+function allExercises(routine: Routine): Exercise[] {
+  if (routine.days && routine.days.length > 0) {
+    return routine.days.flatMap(d => d.exercises);
+  }
+  return routine.exercises;
+}
+function pct(routine: Routine) {
+  const exs = allExercises(routine);
   if (!exs.length) return 0;
   return Math.round((exs.filter(e => e.completed).length / exs.length) * 100);
 }
@@ -100,6 +110,8 @@ export default function ClientDetailPage() {
   const [weekStart,        setWeekStart]        = useState(getMonday());
   const [durationWeeks,    setDurationWeeks]    = useState("0");
   const [routineNote,      setRoutineNote]      = useState("");
+  const [useDays,          setUseDays]          = useState(false);
+  const [days,             setDays]             = useState<DayForm[]>([{ name: "Día 1", exercises: [{ ...EMPTY }] }]);
   const [exercises,        setExercises]        = useState<ExForm[]>([{ ...EMPTY }]);
   const [submitting,       setSubmitting]       = useState(false);
   const [formError,        setFormError]        = useState("");
@@ -175,6 +187,29 @@ export default function ClientDetailPage() {
   function updateEx(i: number, f: keyof ExForm, v: string) {
     setExercises(p => p.map((ex, j) => j === i ? { ...ex, [f]: v } : ex));
   }
+
+  // Day-mode helpers
+  function addDay() {
+    setDays(p => [...p, { name: `Día ${p.length + 1}`, exercises: [{ ...EMPTY }] }]);
+  }
+  function removeDay(di: number) {
+    setDays(p => p.filter((_, j) => j !== di));
+  }
+  function updateDayName(di: number, name: string) {
+    setDays(p => p.map((d, j) => j === di ? { ...d, name } : d));
+  }
+  function addDayEx(di: number) {
+    setDays(p => p.map((d, j) => j === di ? { ...d, exercises: [...d.exercises, { ...EMPTY }] } : d));
+  }
+  function removeDayEx(di: number, ei: number) {
+    setDays(p => p.map((d, j) => j === di ? { ...d, exercises: d.exercises.filter((_, k) => k !== ei) } : d));
+  }
+  function updateDayEx(di: number, ei: number, f: keyof ExForm, v: string) {
+    setDays(p => p.map((d, j) => j === di
+      ? { ...d, exercises: d.exercises.map((ex, k) => k === ei ? { ...ex, [f]: v } : ex) }
+      : d
+    ));
+  }
   function handleDragStart(i: number) { dragIdx.current = i; }
   function handleDragOver(e: React.DragEvent, i: number) {
     e.preventDefault(); setDragOverIdx(i);
@@ -206,6 +241,7 @@ export default function ClientDetailPage() {
 
   function applyTemplate(t: RoutineTemplate) {
     setDurationWeeks(String(t.durationWeeks ?? 4));
+    setUseDays(false);
     setExercises(t.exercises.map(ex => ({
       name:   ex.name,
       sets:   String(ex.sets),
@@ -354,43 +390,66 @@ export default function ClientDetailPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setFormError("");
-    if (exercises.some(ex => !ex.name.trim())) { setFormError("Cada ejercicio debe tener nombre."); return; }
+
+    const dur = parseInt(durationWeeks) || 0;
+    const base = {
+      weekStart:     new Date(weekStart + "T00:00:00.000Z").toISOString(),
+      durationWeeks: dur,
+      notes:         routineNote || undefined,
+    };
+
+    if (useDays) {
+      if (days.some(d => !d.name.trim()))                      { setFormError("Cada día debe tener nombre."); return; }
+      if (days.some(d => d.exercises.some(ex => !ex.name.trim()))) { setFormError("Cada ejercicio debe tener nombre."); return; }
+    } else {
+      if (exercises.some(ex => !ex.name.trim()))               { setFormError("Cada ejercicio debe tener nombre."); return; }
+    }
+
     setSubmitting(true);
-    const exPayload = exercises.map((ex, i) => ({
-      name: ex.name.trim(), sets: parseInt(ex.sets) || 3,
-      reps: parseInt(ex.reps) || 10,
-      weight: ex.weight ? parseFloat(ex.weight) : undefined,
-      notes: ex.notes || undefined, order: i,
-    }));
     try {
-      const dur = parseInt(durationWeeks) || 4;
+      const payload = useDays
+        ? {
+            ...base,
+            days: days.map((d, di) => ({
+              name:  d.name.trim(),
+              order: di,
+              exercises: d.exercises.map((ex, ei) => ({
+                name:   ex.name.trim(),
+                sets:   parseInt(ex.sets)  || 3,
+                reps:   parseInt(ex.reps)  || 10,
+                weight: ex.weight ? parseFloat(ex.weight) : undefined,
+                notes:  ex.notes || undefined,
+                order:  ei,
+              })),
+            })),
+          }
+        : {
+            ...base,
+            exercises: exercises.map((ex, i) => ({
+              name:   ex.name.trim(),
+              sets:   parseInt(ex.sets)  || 3,
+              reps:   parseInt(ex.reps)  || 10,
+              weight: ex.weight ? parseFloat(ex.weight) : undefined,
+              notes:  ex.notes || undefined,
+              order:  i,
+            })),
+          };
+
       if (editingRoutineId) {
-        // Edit existing routine
-        const res = await api.patch(`/routines/${editingRoutineId}`, {
-          weekStart: new Date(weekStart + "T00:00:00.000Z").toISOString(),
-          durationWeeks: dur,
-          notes: routineNote || undefined,
-          exercises: exPayload,
-        });
+        const res = await api.patch(`/routines/${editingRoutineId}`, payload);
         setClient(p => p ? {
           ...p,
           routines: p.routines.map(r => r.id === editingRoutineId ? res.data.data : r),
         } : p);
       } else {
-        // Create new routine
-        await api.post("/routines", {
-          clientId,
-          weekStart: new Date(weekStart + "T00:00:00.000Z").toISOString(),
-          durationWeeks: dur,
-          notes: routineNote || undefined,
-          exercises: exPayload,
-        });
+        await api.post("/routines", { clientId, ...payload });
         const r = await api.get(`/trainer/clients/${clientId}`);
         setClient(r.data.data);
       }
       cancelForm();
     } catch (err: unknown) {
-      setFormError((err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? (editingRoutineId ? "Error al editar la rutina." : "Error al crear la rutina."));
+      setFormError((err as { response?: { data?: { error?: string } } })?.response?.data?.error
+        ?? (editingRoutineId ? "Error al editar la rutina." : "Error al crear la rutina."));
     } finally {
       setSubmitting(false);
     }
@@ -399,15 +458,30 @@ export default function ClientDetailPage() {
   function startEditRoutine(routine: Routine) {
     setEditingRoutineId(routine.id);
     setWeekStart(routine.weekStart.split("T")[0]);
-    setDurationWeeks(String(routine.durationWeeks ?? 4));
+    setDurationWeeks(String(routine.durationWeeks ?? 0));
     setRoutineNote(routine.notes ?? "");
-    setExercises(routine.exercises.map(ex => ({
-      name:   ex.name,
-      sets:   String(ex.sets),
-      reps:   String(ex.reps),
-      weight: ex.weight ? String(ex.weight) : "",
-      notes:  ex.notes ?? "",
-    })));
+    if (routine.days && routine.days.length > 0) {
+      setUseDays(true);
+      setDays(routine.days.map(d => ({
+        name:      d.name,
+        exercises: d.exercises.map(ex => ({
+          name:   ex.name,
+          sets:   String(ex.sets),
+          reps:   String(ex.reps),
+          weight: ex.weight ? String(ex.weight) : "",
+          notes:  ex.notes ?? "",
+        })),
+      })));
+    } else {
+      setUseDays(false);
+      setExercises(routine.exercises.map(ex => ({
+        name:   ex.name,
+        sets:   String(ex.sets),
+        reps:   String(ex.reps),
+        weight: ex.weight ? String(ex.weight) : "",
+        notes:  ex.notes ?? "",
+      })));
+    }
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -418,6 +492,8 @@ export default function ClientDetailPage() {
     setWeekStart(getMonday());
     setDurationWeeks("0");
     setRoutineNote("");
+    setUseDays(false);
+    setDays([{ name: "Día 1", exercises: [{ ...EMPTY }] }]);
     setExercises([{ ...EMPTY }]);
     setFormError("");
   }
@@ -649,7 +725,29 @@ export default function ClientDetailPage() {
             </p>
           </div>
 
-          {/* Exercise rows */}
+          {/* Day / flat toggle */}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setUseDays(v => !v)}
+              className={`flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                useDays
+                  ? "bg-orange-500/15 border-orange-500/40 text-orange-400"
+                  : "bg-zinc-800/50 border-white/[0.06] text-zinc-400 hover:border-white/10 hover:text-white"
+              }`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h7" />
+              </svg>
+              {useDays ? "Dividido por días ✓" : "Dividir por días"}
+            </button>
+            <span className="text-xs text-zinc-600">
+              {useDays ? "Cada día tiene sus propios ejercicios" : "Lista plana de ejercicios"}
+            </span>
+          </div>
+
+          {/* Exercise rows — flat mode */}
+          {!useDays && (
           <div>
             <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">
               Ejercicios
@@ -668,7 +766,6 @@ export default function ClientDetailPage() {
                       ? "border-orange-500/50 bg-orange-500/5"
                       : "border-white/5"
                   }`}>
-                  {/* Drag handle */}
                   <div className="col-span-1 flex justify-center cursor-grab active:cursor-grabbing">
                     <svg className="w-4 h-4 text-zinc-700 hover:text-zinc-500" fill="currentColor" viewBox="0 0 24 24">
                       <circle cx="9" cy="7"  r="1.5"/><circle cx="15" cy="7"  r="1.5"/>
@@ -719,6 +816,87 @@ export default function ClientDetailPage() {
               Agregar ejercicio
             </button>
           </div>
+          )}
+
+          {/* Exercise rows — day mode */}
+          {useDays && (
+          <div className="space-y-4">
+            {days.map((day, di) => (
+              <div key={di} className="border border-orange-500/20 rounded-xl overflow-hidden">
+                {/* Day header */}
+                <div className="flex items-center gap-2 px-3 py-2.5 bg-orange-500/8 border-b border-orange-500/15">
+                  <span className="text-xs font-bold text-orange-400/70 shrink-0">Día {di + 1}</span>
+                  <input
+                    value={day.name}
+                    onChange={e => updateDayName(di, e.target.value)}
+                    placeholder="Nombre del día (ej: Piernas, Pecho y Bícep...)"
+                    className="flex-1 bg-transparent text-sm font-semibold text-white placeholder:text-zinc-600 focus:outline-none"
+                  />
+                  {days.length > 1 && (
+                    <button type="button" onClick={() => removeDay(di)}
+                      className="text-zinc-600 hover:text-red-400 transition-colors text-lg leading-none shrink-0">×</button>
+                  )}
+                </div>
+                {/* Day exercises */}
+                <div className="p-3 space-y-2">
+                  {day.exercises.map((ex, ei) => (
+                    <div key={ei} className="grid grid-cols-12 gap-2 items-center bg-zinc-800/50 border border-white/5 rounded-xl p-3">
+                      <div className="col-span-11 sm:col-span-4">
+                        <input placeholder="Ejercicio *" value={ex.name}
+                          onChange={e => updateDayEx(di, ei, "name", e.target.value)}
+                          className="input-dark !py-2 !text-xs" required
+                          list="exercise-suggestions" autoComplete="off" />
+                      </div>
+                      <div className="col-span-3 sm:col-span-2">
+                        <input type="number" min={1} value={ex.sets}
+                          onChange={e => updateDayEx(di, ei, "sets", e.target.value)}
+                          className="input-dark !py-2 !text-xs text-center" />
+                        <p className="text-[10px] text-zinc-600 text-center mt-1">Series</p>
+                      </div>
+                      <div className="col-span-3 sm:col-span-2">
+                        <input type="number" min={1} value={ex.reps}
+                          onChange={e => updateDayEx(di, ei, "reps", e.target.value)}
+                          className="input-dark !py-2 !text-xs text-center" />
+                        <p className="text-[10px] text-zinc-600 text-center mt-1">Reps</p>
+                      </div>
+                      <div className="col-span-3 sm:col-span-2">
+                        <input type="number" min={0} step={0.5} value={ex.weight} placeholder="—"
+                          onChange={e => updateDayEx(di, ei, "weight", e.target.value)}
+                          className="input-dark !py-2 !text-xs text-center" />
+                        <p className="text-[10px] text-zinc-600 text-center mt-1">Peso kg</p>
+                      </div>
+                      <div className="col-span-9 sm:col-span-1">
+                        <input placeholder="Nota" value={ex.notes}
+                          onChange={e => updateDayEx(di, ei, "notes", e.target.value)}
+                          className="input-dark !py-2 !text-xs" />
+                      </div>
+                      {day.exercises.length > 1 && (
+                        <div className="col-span-1 flex justify-center">
+                          <button type="button" onClick={() => removeDayEx(di, ei)}
+                            className="text-zinc-600 hover:text-red-400 transition-colors text-lg leading-none">×</button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => addDayEx(di)}
+                    className="flex items-center gap-1.5 text-xs text-orange-400/70 hover:text-orange-400 transition-colors mt-1">
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Agregar ejercicio al día {di + 1}
+                  </button>
+                </div>
+              </div>
+            ))}
+            <button type="button" onClick={addDay}
+              className="flex items-center gap-2 text-sm text-orange-400 hover:text-orange-300 transition-colors border border-orange-500/20 hover:border-orange-500/40 px-4 py-2 rounded-xl bg-orange-500/5 hover:bg-orange-500/10">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              Agregar día
+            </button>
+          </div>
+          )}
 
           {/* Save as template */}
           <div className="flex items-center gap-2 pt-1 border-t border-white/[0.04]">
@@ -763,8 +941,9 @@ export default function ClientDetailPage() {
       ) : (
         <div className="space-y-4">
           {client.routines.map((routine, idx) => {
-            const p = pct(routine.exercises);
-            const done = routine.exercises.filter(e => e.completed).length;
+            const p    = pct(routine);
+            const exs  = allExercises(routine);
+            const done = exs.filter(e => e.completed).length;
             return (
               <div key={routine.id} className="bg-zinc-900 border border-white/[0.06] rounded-2xl overflow-hidden animate-slide-up"
                 style={{ animationDelay: `${idx * 60}ms` }}>
@@ -795,7 +974,7 @@ export default function ClientDetailPage() {
                   <div className="flex items-center gap-2 shrink-0">
                     <div className="text-right mr-1">
                       <p className={`text-sm font-bold ${p === 100 ? "text-emerald-400" : "text-zinc-300"}`}>
-                        {p === 100 ? "Completo ✓" : `${done}/${routine.exercises.length}`}
+                        {p === 100 ? "Completo ✓" : `${done}/${exs.length}`}
                       </p>
                       <p className="text-xs text-zinc-600">{p}%</p>
                     </div>
@@ -819,25 +998,42 @@ export default function ClientDetailPage() {
                   </div>
                 </div>
 
-                {/* Exercises */}
-                <div className="divide-y divide-white/[0.04] border-t border-white/[0.04]">
-                  {routine.exercises.map(ex => (
-                    <div key={ex.id} className={`flex items-center gap-3 px-4 sm:px-5 py-3 transition-colors ${ex.completed ? "bg-emerald-500/5" : ""}`}>
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${ex.completed ? "bg-emerald-400" : "bg-zinc-700"}`} />
-                      <span className={`flex-1 text-sm ${ex.completed ? "text-emerald-400/70 line-through decoration-emerald-600" : "text-zinc-300"}`}>
-                        {ex.name}
-                      </span>
-                      <span className="text-xs text-zinc-600 tabular-nums">
-                        {ex.sets}×{ex.reps}{ex.weight ? ` · ${ex.weight}kg` : ""}
-                      </span>
+                {/* Exercises — grouped by day or flat */}
+                <div className="border-t border-white/[0.04]">
+                  {routine.days && routine.days.length > 0 ? (
+                    routine.days.map(day => (
+                      <div key={day.id}>
+                        <div className="px-4 sm:px-5 py-2 bg-orange-500/5 border-b border-orange-500/10">
+                          <span className="text-xs font-bold text-orange-400/70 uppercase tracking-widest">{day.name}</span>
+                        </div>
+                        <div className="divide-y divide-white/[0.04]">
+                          {day.exercises.map(ex => (
+                            <div key={ex.id} className={`flex items-center gap-3 px-4 sm:px-5 py-3 transition-colors ${ex.completed ? "bg-emerald-500/5" : ""}`}>
+                              <span className={`w-2 h-2 rounded-full shrink-0 ${ex.completed ? "bg-emerald-400" : "bg-zinc-700"}`} />
+                              <span className={`flex-1 text-sm ${ex.completed ? "text-emerald-400/70 line-through decoration-emerald-600" : "text-zinc-300"}`}>{ex.name}</span>
+                              <span className="text-xs text-zinc-600 tabular-nums">{ex.sets}×{ex.reps}{ex.weight ? ` · ${ex.weight}kg` : ""}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="divide-y divide-white/[0.04]">
+                      {routine.exercises.map(ex => (
+                        <div key={ex.id} className={`flex items-center gap-3 px-4 sm:px-5 py-3 transition-colors ${ex.completed ? "bg-emerald-500/5" : ""}`}>
+                          <span className={`w-2 h-2 rounded-full shrink-0 ${ex.completed ? "bg-emerald-400" : "bg-zinc-700"}`} />
+                          <span className={`flex-1 text-sm ${ex.completed ? "text-emerald-400/70 line-through decoration-emerald-600" : "text-zinc-300"}`}>{ex.name}</span>
+                          <span className="text-xs text-zinc-600 tabular-nums">{ex.sets}×{ex.reps}{ex.weight ? ` · ${ex.weight}kg` : ""}</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
                 {/* Client notes summary */}
-                {routine.exercises.some(e => e.clientNote) && (
+                {exs.some(e => e.clientNote) && (
                   <div className="px-4 sm:px-5 py-3 border-t border-white/[0.04] bg-yellow-500/[0.03]">
                     <p className="text-xs text-zinc-600 font-semibold uppercase tracking-widest mb-2">Notas del cliente</p>
-                    {routine.exercises.filter(e => e.clientNote).map(e => (
+                    {exs.filter(e => e.clientNote).map(e => (
                       <button key={e.id}
                         onClick={() => setNoteModal({ exerciseName: e.name, note: e.clientNote! })}
                         className="text-xs text-yellow-500/70 italic mb-1 text-left hover:text-yellow-400 transition-colors w-full cursor-pointer">

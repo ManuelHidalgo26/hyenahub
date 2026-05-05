@@ -9,11 +9,18 @@ export async function GET() {
 
   try {
     const routines = await prisma.routine.findMany({
-      where: { clientId: session!.user.profileId },
+      where:   { clientId: session!.user.profileId },
       orderBy: { weekStart: "desc" },
       include: {
-        exercises: { orderBy: { order: "asc" } },
-        client: { select: { trainerId: true } },
+        days: {
+          orderBy: { order: "asc" },
+          include: { exercises: { orderBy: { order: "asc" } } },
+        },
+        exercises: {
+          where:   { dayId: null },
+          orderBy: { order: "asc" },
+        },
+        client:   { select: { trainerId: true } },
         feedback: true,
       },
     });

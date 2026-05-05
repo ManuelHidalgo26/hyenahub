@@ -137,6 +137,7 @@ model Routine {
   notes         String?
 
   client    Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  days      RoutineDay[]
   exercises Exercise[]
   feedback  WeeklyFeedback?
 
@@ -144,9 +145,23 @@ model Routine {
   @@map("routines")
 }
 
+model RoutineDay {
+  id        String @id @default(cuid())
+  routineId String
+  name      String
+  order     Int    @default(0)
+
+  routine   Routine    @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  exercises Exercise[]
+
+  @@index([routineId])
+  @@map("routine_days")
+}
+
 model Exercise {
   id         String  @id @default(cuid())
   routineId  String
+  dayId      String?
   name       String
   sets       Int
   reps       Int
@@ -156,9 +171,11 @@ model Exercise {
   completed  Boolean @default(false)
   order      Int     @default(0)
 
-  routine Routine @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  routine Routine     @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  day     RoutineDay? @relation(fields: [dayId], references: [id], onDelete: SetNull)
 
   @@index([routineId])
+  @@index([dayId])
   @@map("exercises")
 }
 

@@ -11,23 +11,25 @@ export async function GET(
   if (error) return error;
 
   try {
-    // Verify client belongs to this trainer
     const client = await prisma.client.findFirst({
       where: { id: params.clientId, trainerId: session!.user.profileId },
     });
-
     if (!client) {
-      return NextResponse.json(
-        { success: false, error: "Acceso denegado" },
-        { status: 403 }
-      );
+      return NextResponse.json({ success: false, error: "Acceso denegado" }, { status: 403 });
     }
 
     const routines = await prisma.routine.findMany({
-      where: { clientId: params.clientId },
+      where:   { clientId: params.clientId },
       orderBy: { weekStart: "desc" },
       include: {
-        exercises: { orderBy: { order: "asc" } },
+        days: {
+          orderBy: { order: "asc" },
+          include: { exercises: { orderBy: { order: "asc" } } },
+        },
+        exercises: {
+          where:   { dayId: null },
+          orderBy: { order: "asc" },
+        },
         feedback: true,
       },
     });

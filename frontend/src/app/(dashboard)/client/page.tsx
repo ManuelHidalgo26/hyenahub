@@ -10,13 +10,15 @@ import { ErrorBanner } from "@/components/ErrorBanner";
 interface Exercise {
   id: string; name: string; sets: number; reps: number;
   weight: number | null; notes: string | null; clientNote: string | null;
-  completed: boolean; order: number;
+  completed: boolean; order: number; dayId: string | null;
 }
+interface RoutineDay { id: string; name: string; order: number; exercises: Exercise[]; }
 interface WeeklyFeedback {
   id: string; rating: number; comment: string | null;
 }
 interface Routine {
-  id: string; weekStart: string; createdAt: string; notes: string | null; exercises: Exercise[];
+  id: string; weekStart: string; createdAt: string; notes: string | null;
+  exercises: Exercise[]; days: RoutineDay[];
   client?: { trainerId: string };
   feedback?: WeeklyFeedback | null;
 }
@@ -252,9 +254,11 @@ function RoutineCard({ routine, onToggle, onNote, readonly, clientName, videoMap
   videoMap?: Record<string, TrainerVideo>;
   onFeedbackSaved?: (routineId: string, fb: WeeklyFeedback) => void;
 }) {
-  const done  = routine.exercises.filter(e => e.completed).length;
-  const total = routine.exercises.length;
-  const p     = total > 0 ? Math.round((done / total) * 100) : 0;
+  const hasDays = routine.days && routine.days.length > 0;
+  const allExs  = hasDays ? routine.days.flatMap(d => d.exercises) : routine.exercises;
+  const done    = allExs.filter(e => e.completed).length;
+  const total   = allExs.length;
+  const p       = total > 0 ? Math.round((done / total) * 100) : 0;
 
   function formatDate(s: string) {
     const d = new Date(s);
@@ -296,23 +300,43 @@ function RoutineCard({ routine, onToggle, onNote, readonly, clientName, videoMap
         </div>
       </div>
 
-      {/* Exercises */}
-      <div className="divide-y divide-white/[0.04]">
-        {routine.exercises.map(ex => {
-          const vid = videoMap?.[ex.name.toLowerCase()];
-          return (
-            <ExerciseRow
-              key={ex.id}
-              ex={ex}
-              onToggle={onToggle}
-              onNote={onNote}
-              readonly={readonly}
-              videoUrl={vid?.videoUrl}
-              videoTitle={vid?.title}
-            />
-          );
-        })}
-      </div>
+      {/* Exercises — grouped by day or flat */}
+      {hasDays ? (
+        <div>
+          {routine.days.map(day => (
+            <div key={day.id}>
+              <div className="px-5 py-2.5 bg-orange-500/5 border-y border-orange-500/10 flex items-center gap-2">
+                <svg className="w-3 h-3 text-orange-400/60 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <span className="text-xs font-bold text-orange-400/80 uppercase tracking-widest">{day.name}</span>
+                <span className="text-xs text-zinc-600 ml-auto">
+                  {day.exercises.filter(e => e.completed).length}/{day.exercises.length}
+                </span>
+              </div>
+              <div className="divide-y divide-white/[0.04]">
+                {day.exercises.map(ex => {
+                  const vid = videoMap?.[ex.name.toLowerCase()];
+                  return (
+                    <ExerciseRow key={ex.id} ex={ex} onToggle={onToggle} onNote={onNote}
+                      readonly={readonly} videoUrl={vid?.videoUrl} videoTitle={vid?.title} />
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="divide-y divide-white/[0.04]">
+          {routine.exercises.map(ex => {
+            const vid = videoMap?.[ex.name.toLowerCase()];
+            return (
+              <ExerciseRow key={ex.id} ex={ex} onToggle={onToggle} onNote={onNote}
+                readonly={readonly} videoUrl={vid?.videoUrl} videoTitle={vid?.title} />
+            );
+          })}
+        </div>
+      )}
 
       {/* Weekly rating — shown on current (non-readonly) routine */}
       {!readonly && onFeedbackSaved && (
@@ -407,11 +431,15 @@ export default function ClientDashboard() {
     });
   }
 
+  function getExercises(r: Routine) {
+    return r.days && r.days.length > 0 ? r.days.flatMap(d => d.exercises) : r.exercises;
+  }
   const current  = routines[0] ?? null;
-  const allDone  = routines.reduce((s, r) => s + r.exercises.filter(e => e.completed).length, 0);
-  const allTotal = routines.reduce((s, r) => s + r.exercises.length, 0);
-  const done  = current?.exercises.filter(e => e.completed).length ?? 0;
-  const total = current?.exercises.length ?? 0;
+  const allDone  = routines.reduce((s, r) => s + getExercises(r).filter(e => e.completed).length, 0);
+  const allTotal = routines.reduce((s, r) => s + getExercises(r).length, 0);
+  const currentExs = current ? getExercises(current) : [];
+  const done  = currentExs.filter(e => e.completed).length;
+  const total = currentExs.length;
   const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
 
   if (loading) return <LoadingScreen />;
