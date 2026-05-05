@@ -219,7 +219,7 @@ export default function ClientDetailPage() {
   }
 
   async function saveAsTemplate() {
-    const name = tplName.trim() || `Template ${new Date().toLocaleDateString("es-AR")}`;
+    const name = tplName.trim() || `Plantilla ${new Date().toLocaleDateString("es-AR")}`;
     if (exercises.some(ex => !ex.name.trim())) return;
     setSavingTpl(true);
     try {
@@ -333,7 +333,7 @@ export default function ClientDetailPage() {
   }
 
   async function saveAsDietTemplate() {
-    const name = dietName.trim() || `Template dieta ${new Date().toLocaleDateString("es-AR")}`;
+    const name = dietName.trim() || `Plantilla dieta ${new Date().toLocaleDateString("es-AR")}`;
     if (meals.some(m => !m.name.trim() || !m.foods.trim())) return;
     try {
       const res = await api.post("/diet-templates", {
@@ -584,7 +584,7 @@ export default function ClientDetailPage() {
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
-              {loadTemplates ? "Cargando..." : "Usar template"}
+              {loadTemplates ? "Cargando..." : "Usar plantilla"}
             </button>
           </div>
 
@@ -592,12 +592,12 @@ export default function ClientDetailPage() {
           {showTemplates && (
             <div className="bg-zinc-800/60 border border-white/[0.06] rounded-xl p-3 space-y-2 animate-slide-up-sm">
               <div className="flex items-center justify-between mb-1">
-                <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Mis templates</p>
+                <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Mis plantillas</p>
                 <button type="button" onClick={() => setShowTemplates(false)}
                   className="text-zinc-600 hover:text-zinc-400 text-lg leading-none">×</button>
               </div>
               {templates.length === 0 ? (
-                <p className="text-xs text-zinc-600 text-center py-3">Todavía no guardaste ningún template.</p>
+                <p className="text-xs text-zinc-600 text-center py-3">Todavía no guardaste ninguna plantilla.</p>
               ) : (
                 <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
                   {templates.map(t => (
@@ -733,7 +733,7 @@ export default function ClientDetailPage() {
             <input
               value={tplName}
               onChange={e => setTplName(e.target.value)}
-              placeholder="Guardar como template (nombre opcional)"
+              placeholder="Guardar como plantilla (nombre opcional)"
               className="flex-1 bg-zinc-800/60 border border-white/5 rounded-lg px-3 py-1.5 text-xs text-zinc-300 placeholder-zinc-700 focus:outline-none focus:border-orange-500/30"
             />
             <button type="button" onClick={saveAsTemplate} disabled={savingTpl}
@@ -922,7 +922,7 @@ export default function ClientDetailPage() {
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                   </svg>
-                  {loadDietTemplates ? "Cargando..." : "Usar template"}
+                  {loadDietTemplates ? "Cargando..." : "Usar plantilla"}
                 </button>
               </div>
 
@@ -930,11 +930,11 @@ export default function ClientDetailPage() {
               {showDietTemplates && (
                 <div className="bg-zinc-800/60 border border-white/[0.06] rounded-xl p-3 space-y-2 animate-slide-up-sm">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Mis templates de dieta</p>
+                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Mis plantillas de dieta</p>
                     <button type="button" onClick={() => setShowDietTemplates(false)} className="text-zinc-600 hover:text-zinc-400 text-lg leading-none">×</button>
                   </div>
                   {dietTemplates.length === 0 ? (
-                    <p className="text-xs text-zinc-600 text-center py-3">Todavía no guardaste ningún template de dieta.</p>
+                    <p className="text-xs text-zinc-600 text-center py-3">Todavía no guardaste ninguna plantilla de dieta.</p>
                   ) : (
                     <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
                       {dietTemplates.map(t => (
