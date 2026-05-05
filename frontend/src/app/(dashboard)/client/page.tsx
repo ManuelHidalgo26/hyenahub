@@ -407,7 +407,9 @@ export default function ClientDashboard() {
     });
   }
 
-  const current = routines[0] ?? null;
+  const current  = routines[0] ?? null;
+  const allDone  = routines.reduce((s, r) => s + r.exercises.filter(e => e.completed).length, 0);
+  const allTotal = routines.reduce((s, r) => s + r.exercises.length, 0);
   const done  = current?.exercises.filter(e => e.completed).length ?? 0;
   const total = current?.exercises.length ?? 0;
   const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
@@ -435,11 +437,11 @@ export default function ClientDashboard() {
                   Buenas, <span className="text-white font-semibold">{session?.user?.name?.split(" ")[0]}</span> 👋
                 </p>
                 <h1 className="text-xl sm:text-2xl font-black text-white mt-0.5 tracking-tight">
-                  {pct === 100 ? "¡Semana completada!" : pct >= 66 ? "¡Vas muy bien!" : pct > 0 ? "¡A entrenar!" : "¡Comenzá hoy!"}
+                  {pct === 100 ? "¡Completado! 🏆" : pct >= 66 ? "¡Vas muy bien!" : pct > 0 ? "¡A entrenar!" : "¡Comenzá hoy!"}
                 </h1>
                 <p className="text-zinc-400 text-sm mt-1">{done} de {total} ejercicios completados</p>
-                {pct === 100 && (
-                  <p className="text-emerald-400 text-xs mt-2 font-medium">¡Completaste todos los ejercicios de la semana! 🏆</p>
+                {allTotal > total && (
+                  <p className="text-zinc-600 text-xs mt-1">{allDone} de {allTotal} en total</p>
                 )}
               </div>
             </div>
@@ -452,19 +454,23 @@ export default function ClientDashboard() {
         )}
       </div>
 
-      {/* Rutina */}
-      <div className="animate-slide-up-sm">
-        {current
-          ? <RoutineCard
-              routine={current}
-              onToggle={handleToggle}
-              onNote={handleNote}
-              clientName={session?.user?.name}
-              videoMap={videoMap}
-              onFeedbackSaved={handleFeedbackSaved}
-            />
-          : <EmptyState message="Sin rutina asignada" sub="Tu entrenador todavía no asignó ejercicios. ¡Pronto llegará!" />
-        }
+      {/* Rutinas — todas apiladas */}
+      <div className="animate-slide-up-sm space-y-4">
+        {routines.length === 0 && (
+          <EmptyState message="Sin rutina asignada" sub="Tu entrenador todavía no asignó ejercicios. ¡Pronto llegará!" />
+        )}
+        {routines.map((routine, idx) => (
+          <RoutineCard
+            key={routine.id}
+            routine={routine}
+            onToggle={idx === 0 ? handleToggle : undefined}
+            onNote={idx === 0 ? handleNote : undefined}
+            readonly={idx !== 0}
+            clientName={session?.user?.name}
+            videoMap={videoMap}
+            onFeedbackSaved={idx === 0 ? handleFeedbackSaved : undefined}
+          />
+        ))}
       </div>
 
     </div>
