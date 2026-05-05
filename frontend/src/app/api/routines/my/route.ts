@@ -8,28 +8,24 @@ export async function GET() {
   if (error) return error;
 
   try {
-    // Try with days first; fall back to flat if routine_days table doesn't exist yet
-    let routines;
-    try {
-      routines = await prisma.routine.findMany({
-        where:   { clientId: session!.user.profileId },
-        orderBy: { weekStart: "desc" },
-        include: {
-          days: {
-            orderBy: { order: "asc" },
-            include: { exercises: { orderBy: { order: "asc" } } },
-          },
-          exercises: {
-            where:   { dayId: null },
-            orderBy: { order: "asc" },
-          },
-          client:   { select: { trainerId: true } },
-          feedback: true,
+    const routines = await prisma.routine.findMany({
+      where:   { clientId: session!.user.profileId },
+      orderBy: { weekStart: "desc" },
+      include: {
+        days: {
+          orderBy: { order: "asc" },
+          include: { exercises: { orderBy: { order: "asc" } } },
         },
-      });
-    } catch {
-      // DB doesn't have routine_days yet — return without days
-      routines = await prisma.routine.findMany({
+        exercises: {
+          where:   { dayId: null },
+          orderBy: { order: "asc" },
+        },
+        client:   { select: { trainerId: true } },
+        feedback: true,
+      },
+    }).catch(async () => {
+      // DB doesn't have routine_days yet — return flat shape with empty days
+      const flat = await prisma.routine.findMany({
         where:   { clientId: session!.user.profileId },
         orderBy: { weekStart: "desc" },
         include: {
@@ -38,9 +34,8 @@ export async function GET() {
           feedback:  true,
         },
       });
-      // Normalize shape
-      routines = (routines as typeof routines).map((r: typeof routines[0] & { days?: unknown[] }) => ({ ...r, days: [] }));
-    }
+      return flat.map(r => ({ ...r, days: [] as never[] }));
+    });
 
     return NextResponse.json({ success: true, data: routines });
   } catch (err) {
