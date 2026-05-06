@@ -10,11 +10,11 @@ function buildDatasourceUrl(): string {
   if (!url) return url;
   const addParam = (base: string, param: string) =>
     base.includes("?") ? `${base}&${param}` : `${base}?${param}`;
-  // Pooler (Transaction mode) needs pgbouncer=true to disable prepared statements
-  if (url.includes("pooler.supabase.com")) {
+  // Pooler Transaction mode (port 6543) needs pgbouncer=true
+  if (url.includes("pooler.supabase.com") && url.includes(":6543")) {
     return url.includes("pgbouncer=true") ? url : addParam(url, "pgbouncer=true");
   }
-  // Direct connection in serverless needs connection_limit=1 to avoid exhausting pg pool
+  // Direct or Session mode: limit connections for serverless
   if (!url.includes("connection_limit")) {
     return addParam(url, "connection_limit=1&pool_timeout=2");
   }
