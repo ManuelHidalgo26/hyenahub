@@ -8,10 +8,15 @@ declare global {
 function buildDatasourceUrl(): string {
   const url = process.env.DATABASE_URL ?? "";
   if (!url) return url;
-  // Supabase Transaction pooler (port 6543) requires pgbouncer=true to disable
-  // prepared statements. Append automatically so the env var stays clean.
-  if (url.includes("pooler.supabase.com") && !url.includes("pgbouncer=true")) {
-    return url.includes("?") ? `${url}&pgbouncer=true` : `${url}?pgbouncer=true`;
+  const addParam = (base: string, param: string) =>
+    base.includes("?") ? `${base}&${param}` : `${base}?${param}`;
+  // Pooler (Transaction mode) needs pgbouncer=true to disable prepared statements
+  if (url.includes("pooler.supabase.com")) {
+    return url.includes("pgbouncer=true") ? url : addParam(url, "pgbouncer=true");
+  }
+  // Direct connection in serverless needs connection_limit=1 to avoid exhausting pg pool
+  if (!url.includes("connection_limit")) {
+    return addParam(url, "connection_limit=1&pool_timeout=2");
   }
   return url;
 }
