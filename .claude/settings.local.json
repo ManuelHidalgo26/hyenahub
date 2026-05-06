@@ -19,7 +19,8 @@
       "mcp__56c90de6-3d98-42a1-a0f6-818608f29838__list_deployments",
       "mcp__dbdc47de-4c38-4a65-adc9-e38ff7c53301__get_project_url",
       "mcp__dbdc47de-4c38-4a65-adc9-e38ff7c53301__get_publishable_keys",
-      "mcp__dbdc47de-4c38-4a65-adc9-e38ff7c53301__get_logs"
+      "mcp__dbdc47de-4c38-4a65-adc9-e38ff7c53301__get_logs",
+      "mcp__dbdc47de-4c38-4a65-adc9-e38ff7c53301__get_advisors"
     ]
   }
 }
