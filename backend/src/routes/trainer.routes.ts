@@ -6,6 +6,7 @@ import {
   getClientById,
   updateClient,
   getDashboard,
+  resetClientPassword,
 } from "../controllers/trainer.controller";
 
 const router = Router();
@@ -16,5 +17,6 @@ router.get("/dashboard", getDashboard);
 router.get("/clients", getClients);
 router.get("/clients/:clientId", getClientById);
 router.patch("/clients/:clientId", updateClient);
+router.post("/clients/:clientId/reset-password", resetClientPassword);
 
 export default router;

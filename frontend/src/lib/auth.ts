@@ -1,7 +1,5 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/prisma";
 import { Role } from "@/types";
 
 export const authOptions: NextAuthOptions = {
@@ -15,25 +13,23 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
         try {
-          const user = await prisma.user.findUnique({
-            where: { email: credentials.email },
-            include: { trainer: true, client: true },
+          const res = await fetch(`${process.env.BACKEND_URL}/api/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: credentials.email,
+              password: credentials.password,
+            }),
           });
-          if (!user) return null;
-          const valid = await bcrypt.compare(credentials.password, user.password);
-          if (!valid) return null;
-
-          const profileId =
-            user.role === "TRAINER" ? user.trainer?.id ?? user.id :
-            user.role === "CLIENT"  ? user.client?.id  ?? user.id :
-            user.id;
-
+          if (!res.ok) return null;
+          const { data } = await res.json();
           return {
-            id:        user.id,
-            email:     user.email,
-            name:      user.name,
-            role:      user.role as Role,
-            profileId,
+            id:           data.user.id,
+            email:        data.user.email,
+            name:         data.user.name,
+            role:         data.user.role as Role,
+            profileId:    data.user.profileId ?? data.user.id,
+            backendToken: data.accessToken,
           };
         } catch {
           return null;
@@ -43,21 +39,22 @@ export const authOptions: NextAuthOptions = {
   ],
 
   callbacks: {
-    async jwt({ token, user, trigger, session }) {
+    async jwt({ token, user }) {
       if (user) {
-        token.id        = user.id;
-        token.role      = (user as { role: Role }).role;
-        token.profileId = (user as { profileId: string }).profileId;
-        // avatar is NOT stored in JWT — base64 images make the cookie too large (Vercel 494 error)
+        token.id           = user.id;
+        token.role         = (user as { role: Role }).role;
+        token.profileId    = (user as { profileId: string }).profileId;
+        token.backendToken = (user as { backendToken: string }).backendToken;
       }
       return token;
     },
 
     async session({ session, token }) {
       if (token) {
-        session.user.id        = token.id        as string;
-        session.user.role      = token.role      as Role;
-        session.user.profileId = token.profileId as string;
+        session.user.id           = token.id           as string;
+        session.user.role         = token.role         as Role;
+        session.user.profileId    = token.profileId    as string;
+        session.user.backendToken = token.backendToken as string;
       }
       return session;
     },

@@ -51,7 +51,7 @@ export async function createTemplate(req: AuthRequest, res: Response) {
 // DELETE /templates/:templateId — delete template
 export async function deleteTemplate(req: AuthRequest, res: Response) {
   const tmpl = await prisma.routineTemplate.findFirst({
-    where: { id: req.params.templateId, trainerId: req.user!.profileId },
+    where: { id: req.params.templateId as string, trainerId: req.user!.profileId },
   });
   if (!tmpl) {
     res.status(404).json({ success: false, error: "Template no encontrado" });

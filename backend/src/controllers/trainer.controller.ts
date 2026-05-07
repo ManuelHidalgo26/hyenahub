@@ -1,5 +1,6 @@
 import { Response } from "express";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
 import { prisma } from "../services/prisma.service";
 import { AuthRequest } from "../types";
 
@@ -24,9 +25,10 @@ export async function getClients(req: AuthRequest, res: Response) {
 
 // GET /trainer/clients/:clientId — client detail
 export async function getClientById(req: AuthRequest, res: Response) {
+  const clientId = req.params.clientId as string;
   const client = await prisma.client.findFirst({
     where: {
-      id: req.params.clientId,
+      id: clientId,
       trainerId: req.user!.profileId,
     },
     include: {
@@ -65,7 +67,7 @@ export async function updateClient(req: AuthRequest, res: Response) {
 
   // Verify ownership
   const client = await prisma.client.findFirst({
-    where: { id: req.params.clientId, trainerId: req.user!.profileId },
+    where: { id: req.params.clientId as string, trainerId: req.user!.profileId },
   });
 
   if (!client) {
@@ -116,4 +118,32 @@ export async function getDashboard(req: AuthRequest, res: Response) {
     success: true,
     data: { totalClients, thisWeekRoutines, completedExercisesThisWeek },
   });
+}
+
+// POST /trainer/clients/:clientId/reset-password — generate temp password for client
+export async function resetClientPassword(req: AuthRequest, res: Response) {
+  const client = await prisma.client.findFirst({
+    where: { id: req.params.clientId as string, trainerId: req.user!.profileId },
+    include: { user: true },
+  });
+
+  if (!client) {
+    res.status(404).json({ success: false, error: "Cliente no encontrado" });
+    return;
+  }
+
+  // Generate a random 10-char password
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  const tempPassword = Array.from({ length: 10 }, () =>
+    chars[Math.floor(Math.random() * chars.length)]
+  ).join("");
+
+  const hashed = await bcrypt.hash(tempPassword, 10);
+
+  await prisma.user.update({
+    where: { id: client.userId },
+    data: { password: hashed },
+  });
+
+  res.json({ success: true, data: { tempPassword } });
 }

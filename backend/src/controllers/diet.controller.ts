@@ -72,8 +72,9 @@ export async function createDiet(req: AuthRequest, res: Response) {
 
 /* ─── Trainer: get all diets for a specific client ─────────────────────────── */
 export async function getDietsByClient(req: AuthRequest, res: Response) {
+  const clientId = req.params.clientId as string;
   const client = await prisma.client.findFirst({
-    where: { id: req.params.clientId, trainerId: req.user!.profileId },
+    where: { id: clientId, trainerId: req.user!.profileId },
   });
   if (!client) {
     res.status(403).json({ success: false, error: "Acceso denegado" });
@@ -81,7 +82,7 @@ export async function getDietsByClient(req: AuthRequest, res: Response) {
   }
 
   const diets = await prisma.diet.findMany({
-    where: { clientId: req.params.clientId },
+    where: { clientId },
     orderBy: { createdAt: "desc" },
     include: { meals: { orderBy: { order: "asc" } } },
   });
@@ -97,9 +98,10 @@ export async function updateDiet(req: AuthRequest, res: Response) {
     return;
   }
 
+  const dietId = req.params.dietId as string;
   // Verify ownership
   const existing = await prisma.diet.findFirst({
-    where: { id: req.params.dietId, trainerId: req.user!.profileId },
+    where: { id: dietId, trainerId: req.user!.profileId },
   });
   if (!existing) {
     res.status(403).json({ success: false, error: "Dieta no encontrada o sin acceso" });
@@ -109,10 +111,10 @@ export async function updateDiet(req: AuthRequest, res: Response) {
   const { name, description, calories, protein, carbs, fat, meals } = parsed.data;
 
   // Replace meals: delete old + create new
-  await prisma.meal.deleteMany({ where: { dietId: req.params.dietId } });
+  await prisma.meal.deleteMany({ where: { dietId } });
 
   const diet = await prisma.diet.update({
-    where: { id: req.params.dietId },
+    where: { id: dietId },
     data: {
       ...(name        !== undefined && { name }),
       ...(description !== undefined && { description }),
@@ -134,15 +136,16 @@ export async function updateDiet(req: AuthRequest, res: Response) {
 
 /* ─── Trainer: delete a diet ────────────────────────────────────────────────── */
 export async function deleteDiet(req: AuthRequest, res: Response) {
+  const dietId = req.params.dietId as string;
   const existing = await prisma.diet.findFirst({
-    where: { id: req.params.dietId, trainerId: req.user!.profileId },
+    where: { id: dietId, trainerId: req.user!.profileId },
   });
   if (!existing) {
     res.status(403).json({ success: false, error: "Dieta no encontrada o sin acceso" });
     return;
   }
 
-  await prisma.diet.delete({ where: { id: req.params.dietId } });
+  await prisma.diet.delete({ where: { id: dietId } });
 
   auditLog({
     action: "DIET_DELETED",

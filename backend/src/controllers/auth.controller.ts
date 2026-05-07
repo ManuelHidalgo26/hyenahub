@@ -26,7 +26,7 @@ function signAccessToken(userId: string, email: string, role: Role, profileId: s
   return jwt.sign(
     { userId, email, role, profileId },
     process.env.JWT_SECRET!,
-    { expiresIn: process.env.JWT_EXPIRES_IN || "1h" }
+    { expiresIn: (process.env.JWT_EXPIRES_IN || "1h") as unknown as number }
   );
 }
 
@@ -131,9 +131,15 @@ export async function login(req: Request, res: Response) {
   res.json({
     success: true,
     data: {
-      token,
+      accessToken: token,
       refreshToken,
-      user: { id: user.id, email: user.email, name: user.name, role: user.role },
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        profileId,
+      },
     },
   });
 }

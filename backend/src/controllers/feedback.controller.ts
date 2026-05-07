@@ -16,9 +16,10 @@ export async function upsertFeedback(req: AuthRequest, res: Response) {
     return;
   }
 
+  const routineId = req.params.routineId as string;
   // Verify routine belongs to this client
   const routine = await prisma.routine.findFirst({
-    where: { id: req.params.routineId, client: { userId: req.user!.userId } },
+    where: { id: routineId, client: { userId: req.user!.userId } },
     select: { id: true, clientId: true },
   });
   if (!routine) {
@@ -38,7 +39,7 @@ export async function upsertFeedback(req: AuthRequest, res: Response) {
 // GET /feedback/routine/:routineId — trainer gets feedback for a routine
 export async function getFeedbackByRoutine(req: AuthRequest, res: Response) {
   const feedback = await prisma.weeklyFeedback.findUnique({
-    where: { routineId: req.params.routineId },
+    where: { routineId: req.params.routineId as string },
   });
   res.json({ success: true, data: feedback ?? null });
 }

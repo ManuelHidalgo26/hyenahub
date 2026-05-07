@@ -2,7 +2,7 @@ import { Response } from "express";
 import { z } from "zod";
 import { prisma } from "../services/prisma.service";
 import { AuthRequest } from "../types";
-import { emitToUser } from "../socket";
+import { pusher } from "../services/pusher.service";
 import { auditLog } from "../services/audit.service";
 
 const exerciseSchema = z.object({
@@ -12,13 +12,24 @@ const exerciseSchema = z.object({
   weight: z.number().optional(),
   notes: z.string().optional(),
   order: z.number().int().optional(),
+  dayId: z.string().optional(),
+});
+
+const daySchema = z.object({
+  name: z.string().min(1),
+  order: z.number().int().optional(),
+  exercises: z.array(exerciseSchema).optional(),
 });
 
 const createRoutineSchema = z.object({
   clientId: z.string(),
   weekStart: z.string().datetime(),
   notes: z.string().optional(),
-  exercises: z.array(exerciseSchema).min(1),
+  durationWeeks: z.number().int().optional(),
+  exercises: z.array(exerciseSchema).optional(),
+  days: z.array(daySchema).optional(),
+}).refine(d => (d.exercises?.length ?? 0) > 0 || (d.days?.length ?? 0) > 0, {
+  message: "Must provide either exercises or days",
 });
 
 // POST /routines — trainer creates a routine for a client
@@ -29,7 +40,7 @@ export async function createRoutine(req: AuthRequest, res: Response) {
     return;
   }
 
-  const { clientId, weekStart, notes, exercises } = parsed.data;
+  const { clientId, weekStart, notes, durationWeeks, exercises, days } = parsed.data;
 
   // Verify the client belongs to this trainer
   const client = await prisma.client.findFirst({
@@ -41,31 +52,72 @@ export async function createRoutine(req: AuthRequest, res: Response) {
     return;
   }
 
+  // Create routine skeleton first
   const routine = await prisma.routine.create({
     data: {
       clientId,
       weekStart: new Date(weekStart),
       notes,
-      exercises: {
-        create: exercises.map((ex, i) => ({ ...ex, order: ex.order ?? i })),
-      },
+      durationWeeks: durationWeeks ?? 0,
     },
-    include: { exercises: { orderBy: { order: "asc" } } },
   });
 
-  // Notify client in real time
-  emitToUser(client.userId, "routine:new", {
+  if (days?.length) {
+    for (const [di, day] of days.entries()) {
+      const createdDay = await prisma.routineDay.create({
+        data: { routineId: routine.id, name: day.name, order: day.order ?? di },
+      });
+      if (day.exercises?.length) {
+        await prisma.exercise.createMany({
+          data: day.exercises.map((ex, ei) => ({
+            routineId: routine.id,
+            dayId: createdDay.id,
+            name: ex.name,
+            sets: ex.sets,
+            reps: ex.reps,
+            weight: ex.weight,
+            notes: ex.notes,
+            order: ex.order ?? ei,
+          })),
+        });
+      }
+    }
+  } else if (exercises?.length) {
+    await prisma.exercise.createMany({
+      data: exercises.map((ex, i) => ({
+        routineId: routine.id,
+        name: ex.name,
+        sets: ex.sets,
+        reps: ex.reps,
+        weight: ex.weight,
+        notes: ex.notes,
+        order: ex.order ?? i,
+      })),
+    });
+  }
+
+  const fullRoutine = await prisma.routine.findUnique({
+    where: { id: routine.id },
+    include: {
+      days: { orderBy: { order: "asc" }, include: { exercises: { orderBy: { order: "asc" } } } },
+      exercises: { orderBy: { order: "asc" } },
+    },
+  });
+
+  // Notify client in real time via Pusher
+  pusher.trigger(`private-user-${client.userId}`, "routine.new", {
     routineId: routine.id,
     message: "Tu entrenador te asignó una nueva rutina 🏋️",
-  });
+  }).catch(() => {});
 
-  res.status(201).json({ success: true, data: routine });
+  res.status(201).json({ success: true, data: fullRoutine });
 }
 
 // GET /routines/client/:clientId — list routines for a client (trainer view)
 export async function getRoutinesByClient(req: AuthRequest, res: Response) {
+  const clientId = req.params.clientId as string;
   const client = await prisma.client.findFirst({
-    where: { id: req.params.clientId, trainerId: req.user!.profileId },
+    where: { id: clientId, trainerId: req.user!.profileId },
   });
 
   if (!client) {
@@ -74,7 +126,7 @@ export async function getRoutinesByClient(req: AuthRequest, res: Response) {
   }
 
   const routines = await prisma.routine.findMany({
-    where: { clientId: req.params.clientId },
+    where: { clientId },
     orderBy: { weekStart: "desc" },
     include: {
       exercises: { orderBy: { order: "asc" } },
@@ -120,8 +172,9 @@ export async function getCurrentRoutine(req: AuthRequest, res: Response) {
 
 // PATCH /routines/exercises/:exerciseId/complete — client marks exercise done
 export async function toggleExercise(req: AuthRequest, res: Response) {
+  const exerciseId = req.params.exerciseId as string;
   const exercise = await prisma.exercise.findUnique({
-    where: { id: req.params.exerciseId },
+    where: { id: exerciseId },
     include: {
       routine: {
         include: { client: true },
@@ -145,14 +198,15 @@ export async function toggleExercise(req: AuthRequest, res: Response) {
     data: { completed: !exercise.completed },
   });
 
-  // Notify trainer in real time
-  emitToUser(exercise.routine.client.trainerId, "exercise:completed", {
+  // Notify trainer in real time via Pusher
+  const trainerChannel = `private-user-${exercise.routine.client.trainerId}`;
+  pusher.trigger(trainerChannel, "exercise.completed", {
     exerciseId: updated.id,
     exerciseName: updated.name,
     routineId: exercise.routineId,
     clientId: exercise.routine.clientId,
     completed: updated.completed,
-  });
+  }).catch(() => {});
 
   // Check if all exercises in routine are completed
   const allExercises = await prisma.exercise.findMany({
@@ -169,12 +223,12 @@ export async function toggleExercise(req: AuthRequest, res: Response) {
       include: { user: { select: { name: true } } },
     });
 
-    emitToUser(exercise.routine.client.trainerId, "session:completed", {
+    pusher.trigger(trainerChannel, "session.completed", {
       clientId: exercise.routine.clientId,
       clientName: client?.user.name,
       routineId: exercise.routineId,
       message: `${client?.user.name} completó su sesión de hoy 💪`,
-    });
+    }).catch(() => {});
   }
 
   res.json({ success: true, data: updated });
@@ -183,9 +237,10 @@ export async function toggleExercise(req: AuthRequest, res: Response) {
 // PATCH /routines/exercises/:exerciseId/note — client adds/edits personal note
 export async function updateExerciseNote(req: AuthRequest, res: Response) {
   const note: string | null = req.body.note ?? null;
+  const exerciseId = req.params.exerciseId as string;
 
   const exercise = await prisma.exercise.findUnique({
-    where: { id: req.params.exerciseId },
+    where: { id: exerciseId },
     include: { routine: true },
   });
 
@@ -232,9 +287,10 @@ export async function getMyProgress(req: AuthRequest, res: Response) {
 
 // DELETE /routines/:routineId — trainer deletes a routine
 export async function deleteRoutine(req: AuthRequest, res: Response) {
+  const routineId = req.params.routineId as string;
   const routine = await prisma.routine.findFirst({
     where: {
-      id: req.params.routineId,
+      id: routineId,
       client: { trainerId: req.user!.profileId },
     },
   });

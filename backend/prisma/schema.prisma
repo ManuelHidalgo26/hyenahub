@@ -51,21 +51,23 @@ model Trainer {
   bio       String?
   specialty String?
 
-  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  clients   Client[]
-  videos    TrainerVideo[]
-  diets     Diet[]
-  templates RoutineTemplate[]
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clients       Client[]
+  videos        TrainerVideo[]
+  diets         Diet[]
+  templates     RoutineTemplate[]
+  dietTemplates DietTemplate[]
 
   @@map("trainers")
 }
 
 model RoutineTemplate {
-  id          String   @id @default(cuid())
-  trainerId   String
-  name        String
-  description String?
-  createdAt   DateTime @default(now())
+  id            String   @id @default(cuid())
+  trainerId     String
+  name          String
+  description   String?
+  durationWeeks Int      @default(0)
+  createdAt     DateTime @default(now())
 
   trainer   Trainer                  @relation(fields: [trainerId], references: [id], onDelete: Cascade)
   exercises RoutineTemplateExercise[]
@@ -127,23 +129,39 @@ model Client {
 }
 
 model Routine {
-  id        String   @id @default(cuid())
-  clientId  String
-  weekStart DateTime
-  createdAt DateTime @default(now())
-  notes     String?
+  id            String   @id @default(cuid())
+  clientId      String
+  weekStart     DateTime
+  createdAt     DateTime @default(now())
+  notes         String?
+  durationWeeks Int      @default(0)
 
   client    Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
   exercises Exercise[]
+  days      RoutineDay[]
   feedback  WeeklyFeedback?
 
   @@index([clientId])
   @@map("routines")
 }
 
+model RoutineDay {
+  id        String @id @default(cuid())
+  routineId String
+  name      String
+  order     Int    @default(0)
+
+  routine   Routine    @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  exercises Exercise[]
+
+  @@index([routineId])
+  @@map("routine_days")
+}
+
 model Exercise {
   id         String  @id @default(cuid())
   routineId  String
+  dayId      String?
   name       String
   sets       Int
   reps       Int
@@ -153,7 +171,8 @@ model Exercise {
   completed  Boolean @default(false)
   order      Int     @default(0)
 
-  routine Routine @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  routine Routine     @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  day     RoutineDay? @relation(fields: [dayId], references: [id], onDelete: SetNull)
 
   @@index([routineId])
   @@map("exercises")
@@ -234,4 +253,43 @@ model Meal {
 
   @@index([dietId])
   @@map("meals")
+}
+
+// ─── Diet template system ────────────────────────────────────────────────────
+
+model DietTemplate {
+  id          String   @id @default(cuid())
+  trainerId   String
+  name        String
+  description String?
+  calories    Int?
+  protein     Int?
+  carbs       Int?
+  fat         Int?
+  createdAt   DateTime @default(now())
+
+  trainer Trainer          @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  meals   DietTemplateMeal[]
+
+  @@index([trainerId])
+  @@map("diet_templates")
+}
+
+model DietTemplateMeal {
+  id         String  @id @default(cuid())
+  templateId String
+  name       String
+  time       String?
+  foods      String
+  calories   Int?
+  protein    Int?
+  carbs      Int?
+  fat        Int?
+  notes      String?
+  order      Int     @default(0)
+
+  template DietTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@map("diet_template_meals")
 }

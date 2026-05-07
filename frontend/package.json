@@ -4,28 +4,20 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.36.3",
-    "@prisma/client": "^5.20.0",
-    "@tanstack/react-query": "^5.59.16",
-    "@types/bcryptjs": "^3.0.0",
     "axios": "^1.7.7",
-    "bcryptjs": "^3.0.3",
-    "clsx": "^2.1.1",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
-    "lucide-react": "^0.454.0",
     "next": "^14.2.35",
     "next-auth": "^4.24.10",
     "pusher": "^5.3.3",
     "pusher-js": "^8.4.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "tailwind-merge": "^2.5.3",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -36,7 +28,6 @@
     "eslint": "^8.57.1",
     "eslint-config-next": "14.2.15",
     "postcss": "^8.4.47",
-    "prisma": "^5.20.0",
     "tailwindcss": "^3.4.14",
     "typescript": "^5.6.3"
   }

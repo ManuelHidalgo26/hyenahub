@@ -11,6 +11,7 @@ declare module "next-auth" {
       name: string;
       role: Role;
       profileId: string;
+      backendToken: string;
     };
   }
 
@@ -20,6 +21,7 @@ declare module "next-auth" {
     name: string;
     role: Role;
     profileId: string;
+    backendToken: string;
   }
 }
 
@@ -28,6 +30,7 @@ declare module "next-auth/jwt" {
     id: string;
     role: Role;
     profileId: string;
+    backendToken: string;
     error?: string;
   }
 }

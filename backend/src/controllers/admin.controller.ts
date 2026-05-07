@@ -57,7 +57,7 @@ export async function getAllUsers(req: AuthRequest, res: Response) {
 
 // DELETE /admin/users/:userId — soft ban (just an example)
 export async function deleteUser(req: AuthRequest, res: Response) {
-  const user = await prisma.user.findUnique({ where: { id: req.params.userId } });
+  const user = await prisma.user.findUnique({ where: { id: req.params.userId as string } });
 
   if (!user) {
     res.status(404).json({ success: false, error: "Usuario no encontrado" });

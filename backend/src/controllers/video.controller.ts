@@ -23,7 +23,7 @@ export async function getMyVideos(req: AuthRequest, res: Response) {
 // GET /videos/trainer/:trainerId — client views their trainer's videos
 export async function getVideosByTrainer(req: AuthRequest, res: Response) {
   const videos = await prisma.trainerVideo.findMany({
-    where: { trainerId: req.params.trainerId },
+    where: { trainerId: req.params.trainerId as string },
     orderBy: { createdAt: "desc" },
   });
   res.json({ success: true, data: videos });
@@ -45,7 +45,7 @@ export async function createVideo(req: AuthRequest, res: Response) {
 // DELETE /videos/:videoId — trainer deletes a video
 export async function deleteVideo(req: AuthRequest, res: Response) {
   const video = await prisma.trainerVideo.findFirst({
-    where: { id: req.params.videoId, trainerId: req.user!.profileId },
+    where: { id: req.params.videoId as string, trainerId: req.user!.profileId },
   });
   if (!video) {
     res.status(404).json({ success: false, error: "Video no encontrado" });
