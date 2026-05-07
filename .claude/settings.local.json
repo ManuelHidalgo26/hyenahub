@@ -20,7 +20,9 @@
       "mcp__dbdc47de-4c38-4a65-adc9-e38ff7c53301__get_project_url",
       "mcp__dbdc47de-4c38-4a65-adc9-e38ff7c53301__get_publishable_keys",
       "mcp__dbdc47de-4c38-4a65-adc9-e38ff7c53301__get_logs",
-      "mcp__dbdc47de-4c38-4a65-adc9-e38ff7c53301__get_advisors"
+      "mcp__dbdc47de-4c38-4a65-adc9-e38ff7c53301__get_advisors",
+      "mcp__dbdc47de-4c38-4a65-adc9-e38ff7c53301__get_project",
+      "mcp__dbdc47de-4c38-4a65-adc9-e38ff7c53301__apply_migration"
     ]
   }
 }
