@@ -1,36 +1,8 @@
-import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/server-auth";
+import { NextRequest } from "next/server";
+import { proxyToBackend } from "@/lib/backend-proxy";
 
-// GET /api/routines/my/current — current week routine for the client
-export async function GET() {
-  const { session, error } = await requireRole("CLIENT");
-  if (error) return error;
+export const dynamic = "force-dynamic";
 
-  try {
-    // Fetch all routines for the client, newest first
-    const routines = await prisma.routine.findMany({
-      where: { clientId: session!.user.profileId },
-      orderBy: { weekStart: "desc" },
-      include: { exercises: { orderBy: { order: "asc" } } },
-    });
-
-    // Return the first routine whose duration hasn't expired yet.
-    // durationWeeks === 0 means indefinite — always active until replaced.
-    const now = Date.now();
-    const activeRoutine = routines.find(r => {
-      if (r.durationWeeks === 0) return true; // indefinite
-      const endTime = new Date(r.weekStart).getTime() +
-        r.durationWeeks * 7 * 24 * 60 * 60 * 1000;
-      return endTime > now;
-    }) ?? null;
-
-    return NextResponse.json({ success: true, data: activeRoutine });
-  } catch (err) {
-    console.error("[GET /api/routines/my/current]", err);
-    return NextResponse.json(
-      { success: false, error: "Error interno del servidor" },
-      { status: 500 }
-    );
-  }
+export async function GET(req: NextRequest) {
+  return proxyToBackend(req, "routines/my/current");
 }

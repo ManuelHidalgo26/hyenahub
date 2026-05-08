@@ -92,9 +92,9 @@ export async function register(req: Request, res: Response) {
   res.status(201).json({
     success: true,
     data: {
-      token,
+      accessToken: token,
       refreshToken,
-      user: { id: user.id, email: user.email, name: user.name, role: user.role },
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, profileId },
     },
   });
 }
@@ -138,7 +138,6 @@ export async function login(req: Request, res: Response) {
   });
 }
 
-// POST /auth/refresh — intercambia refresh token por nuevo access token
 export async function refresh(req: Request, res: Response) {
   const { refreshToken } = req.body;
   if (!refreshToken) {
@@ -171,7 +170,6 @@ export async function refresh(req: Request, res: Response) {
       ? user.client?.id ?? ""
       : user.id;
 
-  // Rotar el refresh token (buena práctica de seguridad)
   await prisma.refreshToken.delete({ where: { id: stored.id } });
   const newRefreshToken = await createRefreshToken(user.id);
   const newAccessToken = signAccessToken(user.id, user.email, user.role, profileId);
@@ -182,7 +180,6 @@ export async function refresh(req: Request, res: Response) {
   });
 }
 
-// POST /auth/logout — invalida el refresh token
 export async function logout(req: Request, res: Response) {
   const { refreshToken } = req.body;
   if (refreshToken) {
@@ -191,7 +188,6 @@ export async function logout(req: Request, res: Response) {
   res.json({ success: true });
 }
 
-// GET /auth/trainers — public list of trainers for registration
 export async function listTrainers(req: Request, res: Response) {
   const trainers = await prisma.trainer.findMany({
     include: {
