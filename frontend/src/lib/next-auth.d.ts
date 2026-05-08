@@ -5,6 +5,7 @@ import "next-auth/jwt";
 declare module "next-auth" {
   interface Session {
     error?: string;
+    backendToken?: string;
     user: {
       id: string;
       email: string;
@@ -28,6 +29,7 @@ declare module "next-auth/jwt" {
     id: string;
     role: Role;
     profileId: string;
+    backendToken?: string;
     error?: string;
   }
 }
