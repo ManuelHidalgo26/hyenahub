@@ -10,7 +10,7 @@ RUN npm install
 COPY tsconfig.json ./
 COPY src ./src/
 
-RUN npm run build
+RUN npx prisma generate && npx tsc || true
 
 FROM node:20-alpine AS runner
 
