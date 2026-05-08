@@ -25,12 +25,20 @@ export async function proxyToBackend(
     headers["Authorization"] = `Bearer ${session.backendToken}`;
   }
 
-  const url = `${BACKEND}/api/${path}`;
+  // Auto-read body from request for non-GET methods if not explicitly provided
+  let requestBody = body;
+  if (requestBody === undefined && method !== "GET" && method !== "DELETE") {
+    try {
+      requestBody = await req.json();
+    } catch {
+      requestBody = undefined;
+    }
+  }
 
-  const res = await fetch(url, {
+  const res = await fetch(`${BACKEND}/api/${path}`, {
     method,
     headers,
-    body: body ? JSON.stringify(body) : undefined,
+    body: requestBody !== undefined ? JSON.stringify(requestBody) : undefined,
   });
 
   const data = await res.json();

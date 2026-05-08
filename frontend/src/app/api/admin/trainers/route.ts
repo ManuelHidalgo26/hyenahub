@@ -1,18 +1,8 @@
-import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/server-auth";
+import { NextRequest } from "next/server";
+import { proxyToBackend } from "@/lib/backend-proxy";
 
-// GET /api/admin/trainers
-export async function GET() {
-  const { error } = await requireRole("ADMIN");
-  if (error) return error;
+export const dynamic = "force-dynamic";
 
-  const trainers = await prisma.trainer.findMany({
-    include: {
-      user:   { select: { id: true, name: true, email: true, createdAt: true } },
-      _count: { select: { clients: true } },
-    },
-  });
-
-  return NextResponse.json({ success: true, data: trainers });
+export async function GET(req: NextRequest) {
+  return proxyToBackend(req, "admin/trainers");
 }

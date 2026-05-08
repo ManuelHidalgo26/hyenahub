@@ -1,5 +1,6 @@
 import { Response } from "express";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
 import { prisma } from "../services/prisma.service";
 import { AuthRequest } from "../types";
 
@@ -63,7 +64,6 @@ export async function updateClient(req: AuthRequest, res: Response) {
     return;
   }
 
-  // Verify ownership
   const client = await prisma.client.findFirst({
     where: { id: req.params.clientId, trainerId: req.user!.profileId },
   });
@@ -89,7 +89,7 @@ export async function getDashboard(req: AuthRequest, res: Response) {
     await prisma.client.count({ where: { trainerId } }),
     (() => {
       const d = new Date();
-      d.setDate(d.getDate() - d.getDay()); // Sunday
+      d.setDate(d.getDate() - d.getDay());
       d.setHours(0, 0, 0, 0);
       return d;
     })(),
@@ -116,4 +116,30 @@ export async function getDashboard(req: AuthRequest, res: Response) {
     success: true,
     data: { totalClients, thisWeekRoutines, completedExercisesThisWeek },
   });
+}
+
+// POST /trainer/clients/:clientId/reset-password
+export async function resetClientPassword(req: AuthRequest, res: Response) {
+  const client = await prisma.client.findFirst({
+    where: { id: req.params.clientId, trainerId: req.user!.profileId },
+    include: { user: { select: { id: true } } },
+  });
+
+  if (!client) {
+    res.status(403).json({ success: false, error: "Cliente no encontrado o sin acceso" });
+    return;
+  }
+
+  const words = ["Entreno", "Fuerza", "Rutina", "Gym", "Salud", "Fit", "Sport", "Power"];
+  const word = words[Math.floor(Math.random() * words.length)];
+  const nums = String(Math.floor(1000 + Math.random() * 9000));
+  const tempPassword = `${word}${nums}`;
+
+  const hashed = await bcrypt.hash(tempPassword, 10);
+  await prisma.user.update({
+    where: { id: client.user.id },
+    data: { password: hashed },
+  });
+
+  res.json({ success: true, data: { tempPassword } });
 }
