@@ -3,7 +3,7 @@ import { signOut } from "next-auth/react";
 
 const api = axios.create({
   baseURL: "/api",
-  timeout: 12000,
+  timeout: 30000,
 });
 
 api.interceptors.response.use(
