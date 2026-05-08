@@ -2,7 +2,11 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { Role } from "@/types";
 
-const BACKEND = process.env.BACKEND_URL ?? "http://localhost:4000";
+const BACKEND = (
+  process.env.BACKEND_URL ??
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, "") ??
+  "http://localhost:4000"
+);
 
 export const authOptions: NextAuthOptions = {
   providers: [
