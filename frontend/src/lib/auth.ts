@@ -47,7 +47,7 @@ export const authOptions: NextAuthOptions = {
         token.id           = user.id;
         token.role         = (user as { role: Role }).role;
         token.profileId    = (user as { profileId: string }).profileId;
-        token.backendToken = (user as { backendToken: string }).backendToken;
+        token.backendToken = (user as unknown as { backendToken: string }).backendToken;
       }
       return token;
     },
