@@ -1,15 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/server-auth";
+import { NextRequest } from "next/server";
+import { proxyToBackend } from "@/lib/backend-proxy";
 
-// GET /api/messages?type=unread-count — total unread messages for current user
-export async function GET(_req: NextRequest) {
-  const { session, error } = await requireAuth();
-  if (error) return error;
+export const dynamic = "force-dynamic";
 
-  const count = await prisma.message.count({
-    where: { receiverId: session!.user.id, read: false },
-  });
-
-  return NextResponse.json({ success: true, data: { count } });
+export async function GET(req: NextRequest) {
+  return proxyToBackend(req, "messages/unread-count");
 }

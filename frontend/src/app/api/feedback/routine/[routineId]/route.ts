@@ -1,20 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/server-auth";
+import { NextRequest } from "next/server";
+import { proxyToBackend } from "@/lib/backend-proxy";
 
-// GET /api/feedback/routine/[routineId] — trainer gets feedback for a routine
+export const dynamic = "force-dynamic";
+
 export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ routineId: string }> }
+  req: NextRequest,
+  { params }: { params: { routineId: string } }
 ) {
-  const { error } = await requireRole("TRAINER");
-  if (error) return error;
-
-  const { routineId } = await params;
-
-  const feedback = await prisma.weeklyFeedback.findUnique({
-    where: { routineId },
-  });
-
-  return NextResponse.json({ success: true, data: feedback ?? null });
+  return proxyToBackend(req, `feedback/routine/${params.routineId}`);
 }

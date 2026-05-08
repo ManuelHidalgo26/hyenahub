@@ -1,21 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/server-auth";
+import { NextRequest } from "next/server";
+import { proxyToBackend } from "@/lib/backend-proxy";
 
-// GET /api/videos/trainer/[trainerId] — client views their trainer's videos
+export const dynamic = "force-dynamic";
+
 export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ trainerId: string }> }
+  req: NextRequest,
+  { params }: { params: { trainerId: string } }
 ) {
-  const { error } = await requireRole("CLIENT");
-  if (error) return error;
-
-  const { trainerId } = await params;
-
-  const videos = await prisma.trainerVideo.findMany({
-    where: { trainerId },
-    orderBy: { createdAt: "desc" },
-  });
-
-  return NextResponse.json({ success: true, data: videos });
+  return proxyToBackend(req, `videos/trainer/${params.trainerId}`);
 }

@@ -1,25 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/server-auth";
+import { NextRequest } from "next/server";
+import { proxyToBackend } from "@/lib/backend-proxy";
 
-// DELETE /api/videos/[videoId] — trainer deletes a video
+export const dynamic = "force-dynamic";
+
 export async function DELETE(
-  _req: NextRequest,
-  { params }: { params: Promise<{ videoId: string }> }
+  req: NextRequest,
+  { params }: { params: { videoId: string } }
 ) {
-  const { session, error } = await requireRole("TRAINER");
-  if (error) return error;
-
-  const { videoId } = await params;
-
-  const video = await prisma.trainerVideo.findFirst({
-    where: { id: videoId, trainerId: session!.user.profileId },
-  });
-  if (!video) {
-    return NextResponse.json({ success: false, error: "Video no encontrado" }, { status: 404 });
-  }
-
-  await prisma.trainerVideo.delete({ where: { id: videoId } });
-
-  return NextResponse.json({ success: true, message: "Video eliminado" });
+  return proxyToBackend(req, `videos/${params.videoId}`, "DELETE");
 }
