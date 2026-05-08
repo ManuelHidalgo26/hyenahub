@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -127,11 +128,12 @@ model Client {
 }
 
 model Routine {
-  id        String   @id @default(cuid())
-  clientId  String
-  weekStart DateTime
-  createdAt DateTime @default(now())
-  notes     String?
+  id            String   @id @default(cuid())
+  clientId      String
+  weekStart     DateTime
+  durationWeeks Int      @default(0)
+  createdAt     DateTime @default(now())
+  notes         String?
 
   client    Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
   exercises Exercise[]
@@ -175,7 +177,7 @@ model WeeklyFeedback {
   @@map("weekly_feedback")
 }
 
-// ─── Chat system ──────────────────────────────────────────────────────────────
+// ─── Chat system ────────────────────────────────────────────────────────────────────────────────
 
 model Message {
   id         String   @id @default(cuid())
@@ -193,7 +195,7 @@ model Message {
   @@map("messages")
 }
 
-// ─── Diet system ──────────────────────────────────────────────────────────────
+// ─── Diet system ────────────────────────────────────────────────────────────────────────────────
 
 model Diet {
   id          String   @id @default(cuid())

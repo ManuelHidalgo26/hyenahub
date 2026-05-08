@@ -6,22 +6,55 @@ import { emitToUser } from "../socket";
 import { auditLog } from "../services/audit.service";
 
 const exerciseSchema = z.object({
-  name: z.string().min(1),
-  sets: z.number().int().positive(),
-  reps: z.number().int().positive(),
+  name:   z.string().min(1),
+  sets:   z.number().int().positive(),
+  reps:   z.number().int().positive(),
   weight: z.number().optional(),
-  notes: z.string().optional(),
-  order: z.number().int().optional(),
+  notes:  z.string().optional(),
+  order:  z.number().int().optional(),
 });
 
-const createRoutineSchema = z.object({
-  clientId: z.string(),
-  weekStart: z.string().datetime(),
-  notes: z.string().optional(),
+const daySchema = z.object({
+  name:      z.string().min(1),
+  order:     z.number().int().optional(),
   exercises: z.array(exerciseSchema).min(1),
 });
 
-// POST /routines — trainer creates a routine for a client
+const createRoutineSchema = z.object({
+  clientId:      z.string(),
+  weekStart:     z.string().datetime(),
+  durationWeeks: z.number().int().min(0).max(52).optional(),
+  notes:         z.string().optional(),
+  exercises:     z.array(exerciseSchema).optional(),
+  days:          z.array(daySchema).optional(),
+}).refine(d => (d.exercises && d.exercises.length > 0) || (d.days && d.days.length > 0), {
+  message: "Se requiere exercises o days",
+});
+
+const patchRoutineSchema = z.object({
+  weekStart:     z.string().datetime().optional(),
+  durationWeeks: z.number().int().min(0).max(52).optional(),
+  notes:         z.string().optional(),
+  exercises:     z.array(exerciseSchema).optional(),
+  days:          z.array(daySchema).optional(),
+});
+
+type ExInput = { name: string; sets: number; reps: number; weight?: number; notes?: string; order: number };
+
+function flattenDays(days: z.infer<typeof daySchema>[]): ExInput[] {
+  let globalOrder = 0;
+  return days.flatMap(day =>
+    day.exercises.map(ex => ({
+      name:   ex.name,
+      sets:   ex.sets,
+      reps:   ex.reps,
+      weight: ex.weight,
+      notes:  ex.notes,
+      order:  globalOrder++,
+    }))
+  );
+}
+
 export async function createRoutine(req: AuthRequest, res: Response) {
   const parsed = createRoutineSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -29,9 +62,8 @@ export async function createRoutine(req: AuthRequest, res: Response) {
     return;
   }
 
-  const { clientId, weekStart, notes, exercises } = parsed.data;
+  const { clientId, weekStart, durationWeeks, notes, exercises, days } = parsed.data;
 
-  // Verify the client belongs to this trainer
   const client = await prisma.client.findFirst({
     where: { id: clientId, trainerId: req.user!.profileId },
   });
@@ -41,28 +73,72 @@ export async function createRoutine(req: AuthRequest, res: Response) {
     return;
   }
 
+  const flatExercises: ExInput[] = days && days.length > 0
+    ? flattenDays(days)
+    : (exercises ?? []).map((ex, i) => ({ ...ex, order: ex.order ?? i }));
+
   const routine = await prisma.routine.create({
     data: {
       clientId,
-      weekStart: new Date(weekStart),
+      weekStart:     new Date(weekStart),
+      durationWeeks: durationWeeks ?? 0,
       notes,
-      exercises: {
-        create: exercises.map((ex, i) => ({ ...ex, order: ex.order ?? i })),
-      },
+      exercises: { create: flatExercises },
     },
     include: { exercises: { orderBy: { order: "asc" } } },
   });
 
-  // Notify client in real time
   emitToUser(client.userId, "routine:new", {
     routineId: routine.id,
-    message: "Tu entrenador te asignó una nueva rutina 🏋️",
+    message:   "Tu entrenador te asignó una nueva rutina 🏋️",
   });
 
   res.status(201).json({ success: true, data: routine });
 }
 
-// GET /routines/client/:clientId — list routines for a client (trainer view)
+export async function patchRoutine(req: AuthRequest, res: Response) {
+  const parsed = patchRoutineSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ success: false, error: parsed.error.flatten() });
+    return;
+  }
+
+  const routine = await prisma.routine.findFirst({
+    where: { id: req.params.routineId, client: { trainerId: req.user!.profileId } },
+  });
+
+  if (!routine) {
+    res.status(404).json({ success: false, error: "Rutina no encontrada" });
+    return;
+  }
+
+  const { weekStart, durationWeeks, notes, exercises, days } = parsed.data;
+
+  let flatExercises: ExInput[] | null = null;
+  if (days && days.length > 0) {
+    flatExercises = flattenDays(days);
+  } else if (exercises && exercises.length > 0) {
+    flatExercises = exercises.map((ex, i) => ({ ...ex, order: ex.order ?? i }));
+  }
+
+  if (flatExercises) {
+    await prisma.exercise.deleteMany({ where: { routineId: routine.id } });
+  }
+
+  const updated = await prisma.routine.update({
+    where: { id: routine.id },
+    data: {
+      ...(weekStart     !== undefined && { weekStart: new Date(weekStart) }),
+      ...(durationWeeks !== undefined && { durationWeeks }),
+      ...(notes         !== undefined && { notes }),
+      ...(flatExercises && { exercises: { create: flatExercises } }),
+    },
+    include: { exercises: { orderBy: { order: "asc" } } },
+  });
+
+  res.json({ success: true, data: updated });
+}
+
 export async function getRoutinesByClient(req: AuthRequest, res: Response) {
   const client = await prisma.client.findFirst({
     where: { id: req.params.clientId, trainerId: req.user!.profileId },
@@ -74,33 +150,28 @@ export async function getRoutinesByClient(req: AuthRequest, res: Response) {
   }
 
   const routines = await prisma.routine.findMany({
-    where: { clientId: req.params.clientId },
+    where:   { clientId: req.params.clientId },
     orderBy: { weekStart: "desc" },
-    include: {
-      exercises: { orderBy: { order: "asc" } },
-      feedback: true,
-    },
+    include: { exercises: { orderBy: { order: "asc" } }, feedback: true },
   });
 
   res.json({ success: true, data: routines });
 }
 
-// GET /routines/my — client sees their own routines (includes trainerId for socket)
 export async function getMyRoutines(req: AuthRequest, res: Response) {
   const routines = await prisma.routine.findMany({
-    where: { clientId: req.user!.profileId },
+    where:   { clientId: req.user!.profileId },
     orderBy: { weekStart: "desc" },
     include: {
       exercises: { orderBy: { order: "asc" } },
-      client: { select: { trainerId: true } },
-      feedback: true,
+      client:    { select: { trainerId: true } },
+      feedback:  true,
     },
   });
 
   res.json({ success: true, data: routines });
 }
 
-// GET /routines/my/current — current week routine for client
 export async function getCurrentRoutine(req: AuthRequest, res: Response) {
   const weekStart = new Date();
   weekStart.setDate(weekStart.getDate() - weekStart.getDay());
@@ -108,7 +179,7 @@ export async function getCurrentRoutine(req: AuthRequest, res: Response) {
 
   const routine = await prisma.routine.findFirst({
     where: {
-      clientId: req.user!.profileId,
+      clientId:  req.user!.profileId,
       weekStart: { gte: weekStart },
     },
     orderBy: { weekStart: "desc" },
@@ -118,15 +189,10 @@ export async function getCurrentRoutine(req: AuthRequest, res: Response) {
   res.json({ success: true, data: routine ?? null });
 }
 
-// PATCH /routines/exercises/:exerciseId/complete — client marks exercise done
 export async function toggleExercise(req: AuthRequest, res: Response) {
   const exercise = await prisma.exercise.findUnique({
-    where: { id: req.params.exerciseId },
-    include: {
-      routine: {
-        include: { client: true },
-      },
-    },
+    where:   { id: req.params.exerciseId },
+    include: { routine: { include: { client: true } } },
   });
 
   if (!exercise) {
@@ -134,7 +200,6 @@ export async function toggleExercise(req: AuthRequest, res: Response) {
     return;
   }
 
-  // Verify this exercise belongs to the requesting client
   if (exercise.routine.clientId !== req.user!.profileId) {
     res.status(403).json({ success: false, error: "Acceso denegado" });
     return;
@@ -142,50 +207,46 @@ export async function toggleExercise(req: AuthRequest, res: Response) {
 
   const updated = await prisma.exercise.update({
     where: { id: exercise.id },
-    data: { completed: !exercise.completed },
+    data:  { completed: !exercise.completed },
   });
 
-  // Notify trainer in real time
   emitToUser(exercise.routine.client.trainerId, "exercise:completed", {
-    exerciseId: updated.id,
+    exerciseId:   updated.id,
     exerciseName: updated.name,
-    routineId: exercise.routineId,
-    clientId: exercise.routine.clientId,
-    completed: updated.completed,
+    routineId:    exercise.routineId,
+    clientId:     exercise.routine.clientId,
+    completed:    updated.completed,
   });
 
-  // Check if all exercises in routine are completed
   const allExercises = await prisma.exercise.findMany({
     where: { routineId: exercise.routineId },
   });
 
-  const sessionComplete = allExercises.every((ex) =>
+  const sessionComplete = allExercises.every(ex =>
     ex.id === updated.id ? updated.completed : ex.completed
   );
 
   if (sessionComplete) {
     const client = await prisma.client.findUnique({
-      where: { id: exercise.routine.clientId },
+      where:   { id: exercise.routine.clientId },
       include: { user: { select: { name: true } } },
     });
-
     emitToUser(exercise.routine.client.trainerId, "session:completed", {
-      clientId: exercise.routine.clientId,
+      clientId:   exercise.routine.clientId,
       clientName: client?.user.name,
-      routineId: exercise.routineId,
-      message: `${client?.user.name} completó su sesión de hoy 💪`,
+      routineId:  exercise.routineId,
+      message:    `${client?.user.name} completó su sesión de hoy 💪`,
     });
   }
 
   res.json({ success: true, data: updated });
 }
 
-// PATCH /routines/exercises/:exerciseId/note — client adds/edits personal note
 export async function updateExerciseNote(req: AuthRequest, res: Response) {
   const note: string | null = req.body.note ?? null;
 
   const exercise = await prisma.exercise.findUnique({
-    where: { id: req.params.exerciseId },
+    where:   { id: req.params.exerciseId },
     include: { routine: true },
   });
 
@@ -201,18 +262,17 @@ export async function updateExerciseNote(req: AuthRequest, res: Response) {
 
   const updated = await prisma.exercise.update({
     where: { id: exercise.id },
-    data: { clientNote: note || null },
+    data:  { clientNote: note || null },
   });
 
   res.json({ success: true, data: updated });
 }
 
-// GET /routines/my/progress — last N weeks stats for the client
 export async function getMyProgress(req: AuthRequest, res: Response) {
   const routines = await prisma.routine.findMany({
-    where: { clientId: req.user!.profileId },
+    where:   { clientId: req.user!.profileId },
     orderBy: { weekStart: "asc" },
-    take: 12,
+    take:    12,
     include: { exercises: { select: { completed: true } } },
   });
 
@@ -230,13 +290,9 @@ export async function getMyProgress(req: AuthRequest, res: Response) {
   res.json({ success: true, data });
 }
 
-// DELETE /routines/:routineId — trainer deletes a routine
 export async function deleteRoutine(req: AuthRequest, res: Response) {
   const routine = await prisma.routine.findFirst({
-    where: {
-      id: req.params.routineId,
-      client: { trainerId: req.user!.profileId },
-    },
+    where: { id: req.params.routineId, client: { trainerId: req.user!.profileId } },
   });
 
   if (!routine) {
@@ -247,11 +303,11 @@ export async function deleteRoutine(req: AuthRequest, res: Response) {
   await prisma.routine.delete({ where: { id: routine.id } });
 
   auditLog({
-    action: "ROUTINE_DELETED",
-    actorId: req.user!.userId,
+    action:    "ROUTINE_DELETED",
+    actorId:   req.user!.userId,
     actorRole: req.user!.role,
-    targetId: routine.id,
-    meta: { clientId: routine.clientId, weekStart: routine.weekStart },
+    targetId:  routine.id,
+    meta:      { clientId: routine.clientId, weekStart: routine.weekStart },
   });
 
   res.json({ success: true, message: "Rutina eliminada" });
