@@ -131,9 +131,9 @@ export async function login(req: Request, res: Response) {
   res.json({
     success: true,
     data: {
-      token,
+      accessToken: token,
       refreshToken,
-      user: { id: user.id, email: user.email, name: user.name, role: user.role },
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, profileId },
     },
   });
 }
