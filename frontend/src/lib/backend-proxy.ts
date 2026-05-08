@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-const BACKEND = process.env.BACKEND_URL ?? "http://localhost:4000";
+const BACKEND = (
+  process.env.BACKEND_URL ??
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, "") ??
+  "http://localhost:4000"
+);
 
 type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
