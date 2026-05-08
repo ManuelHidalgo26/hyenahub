@@ -45,6 +45,17 @@ export async function proxyToBackend(
     body: requestBody !== undefined ? JSON.stringify(requestBody) : undefined,
   });
 
-  const data = await res.json();
+  const text = await res.text();
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    // Backend returned non-JSON (cold start, HTML error page, etc.)
+    const status = res.status >= 200 && res.status < 300 ? 503 : res.status;
+    return NextResponse.json(
+      { success: false, error: "El servidor no está disponible. Intenta en unos segundos." },
+      { status }
+    );
+  }
   return NextResponse.json(data, { status: res.status });
 }
