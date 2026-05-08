@@ -9,13 +9,32 @@ export async function GET() {
 
   try {
     const routines = await prisma.routine.findMany({
-      where: { clientId: session!.user.profileId },
+      where:   { clientId: session!.user.profileId },
       orderBy: { weekStart: "desc" },
       include: {
-        exercises: { orderBy: { order: "asc" } },
-        client: { select: { trainerId: true } },
+        days: {
+          orderBy: { order: "asc" },
+          include: { exercises: { orderBy: { order: "asc" } } },
+        },
+        exercises: {
+          where:   { dayId: null },
+          orderBy: { order: "asc" },
+        },
+        client:   { select: { trainerId: true } },
         feedback: true,
       },
+    }).catch(async () => {
+      // DB doesn't have routine_days yet — return flat shape with empty days
+      const flat = await prisma.routine.findMany({
+        where:   { clientId: session!.user.profileId },
+        orderBy: { weekStart: "desc" },
+        include: {
+          exercises: { orderBy: { order: "asc" } },
+          client:    { select: { trainerId: true } },
+          feedback:  true,
+        },
+      });
+      return flat.map(r => ({ ...r, days: [] as never[] }));
     });
 
     return NextResponse.json({ success: true, data: routines });

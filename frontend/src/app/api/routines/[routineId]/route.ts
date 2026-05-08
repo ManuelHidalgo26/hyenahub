@@ -12,14 +12,33 @@ const exerciseSchema = z.object({
   order:  z.number().int(),
 });
 
+const daySchema = z.object({
+  name:      z.string().min(1),
+  order:     z.number().int().optional(),
+  exercises: z.array(exerciseSchema).min(1),
+});
+
 const patchSchema = z.object({
   notes:         z.string().optional(),
   weekStart:     z.string().optional(),
   durationWeeks: z.number().int().min(0).max(52).optional(),
-  exercises:     z.array(exerciseSchema).min(1),
+  exercises:     z.array(exerciseSchema).optional(),
+  days:          z.array(daySchema).optional(),
 });
 
-// PATCH /api/routines/[routineId] — trainer edits a routine (replaces exercises)
+const routineInclude = {
+  days: {
+    orderBy: { order: "asc" as const },
+    include: { exercises: { orderBy: { order: "asc" as const } } },
+  },
+  exercises: {
+    where:   { dayId: null as null },
+    orderBy: { order: "asc" as const },
+  },
+  feedback: true,
+};
+
+// PATCH /api/routines/[routineId] — trainer edits a routine
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { routineId: string } }
@@ -28,61 +47,76 @@ export async function PATCH(
   if (error) return error;
 
   try {
-    const body = await req.json();
+    const body   = await req.json();
     const parsed = patchSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(
-        { success: false, error: parsed.error.flatten() },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: parsed.error.flatten() }, { status: 400 });
     }
 
     const routine = await prisma.routine.findFirst({
-      where: {
-        id: params.routineId,
-        client: { trainerId: session!.user.profileId },
-      },
+      where: { id: params.routineId, client: { trainerId: session!.user.profileId } },
     });
-
     if (!routine) {
-      return NextResponse.json(
-        { success: false, error: "Rutina no encontrada" },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: "Rutina no encontrada" }, { status: 404 });
     }
 
-    const { notes, weekStart, durationWeeks, exercises } = parsed.data;
+    const { notes, weekStart, durationWeeks, exercises, days } = parsed.data;
 
-    // Delete existing exercises and recreate — simplest consistent approach
-    await prisma.exercise.deleteMany({ where: { routineId: routine.id } });
+    // Delete all existing days (cascade deletes their exercises) and ungrouped exercises
+    await prisma.routineDay.deleteMany({ where: { routineId: routine.id } });
+    await prisma.exercise.deleteMany({ where: { routineId: routine.id, dayId: null } });
 
-    const updated = await prisma.routine.update({
+    // Update routine metadata
+    await prisma.routine.update({
       where: { id: routine.id },
       data: {
         ...(notes         !== undefined && { notes }),
         ...(weekStart     !== undefined && { weekStart: new Date(weekStart) }),
         ...(durationWeeks !== undefined && { durationWeeks }),
-        exercises: {
-          create: exercises.map(ex => ({
-            name:   ex.name,
-            sets:   ex.sets,
-            reps:   ex.reps,
-            weight: ex.weight ?? null,
-            notes:  ex.notes  ?? null,
-            order:  ex.order,
-          })),
-        },
       },
-      include: { exercises: { orderBy: { order: "asc" } }, feedback: true },
+    });
+
+    if (days && days.length > 0) {
+      for (const [di, d] of days.entries()) {
+        const day = await prisma.routineDay.create({
+          data: { routineId: routine.id, name: d.name, order: d.order ?? di },
+        });
+        await prisma.exercise.createMany({
+          data: d.exercises.map((ex, ei) => ({
+            routineId: routine.id,
+            dayId:     day.id,
+            name:      ex.name,
+            sets:      ex.sets,
+            reps:      ex.reps,
+            weight:    ex.weight ?? null,
+            notes:     ex.notes  ?? null,
+            order:     ex.order  ?? ei,
+          })),
+        });
+      }
+    } else if (exercises && exercises.length > 0) {
+      await prisma.exercise.createMany({
+        data: exercises.map(ex => ({
+          routineId: routine.id,
+          name:      ex.name,
+          sets:      ex.sets,
+          reps:      ex.reps,
+          weight:    ex.weight ?? null,
+          notes:     ex.notes  ?? null,
+          order:     ex.order,
+        })),
+      });
+    }
+
+    const updated = await prisma.routine.findUnique({
+      where:   { id: routine.id },
+      include: routineInclude,
     });
 
     return NextResponse.json({ success: true, data: updated });
   } catch (err) {
     console.error("[PATCH /api/routines/[routineId]]", err);
-    return NextResponse.json(
-      { success: false, error: "Error interno del servidor" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "Error interno del servidor" }, { status: 500 });
   }
 }
 
@@ -96,27 +130,16 @@ export async function DELETE(
 
   try {
     const routine = await prisma.routine.findFirst({
-      where: {
-        id: params.routineId,
-        client: { trainerId: session!.user.profileId },
-      },
+      where: { id: params.routineId, client: { trainerId: session!.user.profileId } },
     });
-
     if (!routine) {
-      return NextResponse.json(
-        { success: false, error: "Rutina no encontrada" },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: "Rutina no encontrada" }, { status: 404 });
     }
 
     await prisma.routine.delete({ where: { id: routine.id } });
-
     return NextResponse.json({ success: true, message: "Rutina eliminada" });
   } catch (err) {
     console.error("[DELETE /api/routines/[routineId]]", err);
-    return NextResponse.json(
-      { success: false, error: "Error interno del servidor" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "Error interno del servidor" }, { status: 500 });
   }
 }

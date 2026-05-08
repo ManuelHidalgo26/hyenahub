@@ -10,13 +10,15 @@ import { ErrorBanner } from "@/components/ErrorBanner";
 interface Exercise {
   id: string; name: string; sets: number; reps: number;
   weight: number | null; notes: string | null; clientNote: string | null;
-  completed: boolean; order: number;
+  completed: boolean; order: number; dayId: string | null;
 }
+interface RoutineDay { id: string; name: string; order: number; exercises: Exercise[]; }
 interface WeeklyFeedback {
   id: string; rating: number; comment: string | null;
 }
 interface Routine {
-  id: string; weekStart: string; notes: string | null; exercises: Exercise[];
+  id: string; weekStart: string; createdAt: string; notes: string | null;
+  exercises: Exercise[]; days: RoutineDay[];
   client?: { trainerId: string };
   feedback?: WeeklyFeedback | null;
 }
@@ -243,25 +245,24 @@ function VideoPlayer({ url }: { url: string }) {
 }
 
 /* ─── Routine Card ────────────────────────────────────────────────────────────── */
-function RoutineCard({ routine, onToggle, onNote, readonly, badge, clientName, videoMap, onFeedbackSaved }: {
+function RoutineCard({ routine, onToggle, onNote, readonly, clientName, videoMap, onFeedbackSaved }: {
   routine: Routine;
   onToggle?: (id: string) => Promise<void>;
   onNote?: (id: string, note: string) => Promise<void>;
   readonly?: boolean;
-  badge?: React.ReactNode;
   clientName?: string;
   videoMap?: Record<string, TrainerVideo>;
   onFeedbackSaved?: (routineId: string, fb: WeeklyFeedback) => void;
 }) {
-  const done  = routine.exercises.filter(e => e.completed).length;
-  const total = routine.exercises.length;
-  const p     = total > 0 ? Math.round((done / total) * 100) : 0;
+  const hasDays = routine.days && routine.days.length > 0;
+  const allExs  = hasDays ? routine.days.flatMap(d => d.exercises) : routine.exercises;
+  const done    = allExs.filter(e => e.completed).length;
+  const total   = allExs.length;
+  const p       = total > 0 ? Math.round((done / total) * 100) : 0;
 
-  function formatRange(s: string) {
-    const start = new Date(s);
-    const end   = new Date(start);
-    end.setDate(start.getDate() + 6);
-    return `${start.toLocaleDateString("es-AR", { day: "numeric", month: "short" })} – ${end.toLocaleDateString("es-AR", { day: "numeric", month: "short" })}`;
+  function formatDate(s: string) {
+    const d = new Date(s);
+    return d.toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" });
   }
 
   return (
@@ -275,11 +276,8 @@ function RoutineCard({ routine, onToggle, onNote, readonly, badge, clientName, v
       {/* Header */}
       <div className="px-5 py-4 border-b border-white/[0.04] flex items-center justify-between gap-2">
         <div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-semibold text-white">{formatRange(routine.weekStart)}</span>
-            {badge}
-          </div>
-          {routine.notes && <p className="text-xs text-zinc-500 mt-0.5">{routine.notes}</p>}
+          <span className="text-xs text-zinc-500 font-medium">Actualizado el {formatDate(routine.createdAt)}</span>
+          {routine.notes && <p className="text-sm text-zinc-300 mt-1">{routine.notes}</p>}
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <div className="text-right">
@@ -302,23 +300,43 @@ function RoutineCard({ routine, onToggle, onNote, readonly, badge, clientName, v
         </div>
       </div>
 
-      {/* Exercises */}
-      <div className="divide-y divide-white/[0.04]">
-        {routine.exercises.map(ex => {
-          const vid = videoMap?.[ex.name.toLowerCase()];
-          return (
-            <ExerciseRow
-              key={ex.id}
-              ex={ex}
-              onToggle={onToggle}
-              onNote={onNote}
-              readonly={readonly}
-              videoUrl={vid?.videoUrl}
-              videoTitle={vid?.title}
-            />
-          );
-        })}
-      </div>
+      {/* Exercises — grouped by day or flat */}
+      {hasDays ? (
+        <div>
+          {routine.days.map(day => (
+            <div key={day.id}>
+              <div className="px-5 py-2.5 bg-orange-500/5 border-y border-orange-500/10 flex items-center gap-2">
+                <svg className="w-3 h-3 text-orange-400/60 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <span className="text-xs font-bold text-orange-400/80 uppercase tracking-widest">{day.name}</span>
+                <span className="text-xs text-zinc-600 ml-auto">
+                  {day.exercises.filter(e => e.completed).length}/{day.exercises.length}
+                </span>
+              </div>
+              <div className="divide-y divide-white/[0.04]">
+                {day.exercises.map(ex => {
+                  const vid = videoMap?.[ex.name.toLowerCase()];
+                  return (
+                    <ExerciseRow key={ex.id} ex={ex} onToggle={onToggle} onNote={onNote}
+                      readonly={readonly} videoUrl={vid?.videoUrl} videoTitle={vid?.title} />
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="divide-y divide-white/[0.04]">
+          {routine.exercises.map(ex => {
+            const vid = videoMap?.[ex.name.toLowerCase()];
+            return (
+              <ExerciseRow key={ex.id} ex={ex} onToggle={onToggle} onNote={onNote}
+                readonly={readonly} videoUrl={vid?.videoUrl} videoTitle={vid?.title} />
+            );
+          })}
+        </div>
+      )}
 
       {/* Weekly rating — shown on current (non-readonly) routine */}
       {!readonly && onFeedbackSaved && (
@@ -340,7 +358,6 @@ export default function ClientDashboard() {
   const [videoMap,  setVideoMap]  = useState<Record<string, TrainerVideo>>({});
   const [loading,   setLoading]   = useState(true);
   const [fetchErr,  setFetchErr]  = useState("");
-  const [tab,       setTab]       = useState<"current" | "previous">("current");
   const sessionFiredRef = useRef(false);
 
   function load() {
@@ -370,14 +387,18 @@ export default function ClientDashboard() {
     const updated: Exercise = res.data.data;
 
     setRoutines(prev => {
+      function patchEx(ex: Exercise) {
+        return ex.id === updated.id ? { ...ex, ...updated } : ex;
+      }
       const next = prev.map(r => ({
         ...r,
-        exercises: r.exercises.map(ex => ex.id === updated.id ? { ...ex, ...updated } : ex),
+        exercises: r.exercises.map(patchEx),
+        days: r.days.map(d => ({ ...d, exercises: d.exercises.map(patchEx) })),
       }));
 
       const current = next[0];
       if (current) {
-        const allDone = current.exercises.every(e => e.completed);
+        const allDone = getExercises(current).every(e => e.completed);
 
         if (allDone && !sessionFiredRef.current) {
           sessionFiredRef.current = true;
@@ -391,7 +412,6 @@ export default function ClientDashboard() {
       }
       return next;
     });
-
   }
 
   function handleFeedbackSaved(routineId: string, fb: WeeklyFeedback) {
@@ -404,7 +424,15 @@ export default function ClientDashboard() {
     setRoutines(prev =>
       prev.map(r => ({
         ...r,
-        exercises: r.exercises.map(ex => ex.id === updated.id ? { ...ex, clientNote: updated.clientNote } : ex),
+        exercises: r.exercises.map(ex =>
+          ex.id === updated.id ? { ...ex, clientNote: updated.clientNote } : ex
+        ),
+        days: r.days.map(d => ({
+          ...d,
+          exercises: d.exercises.map(ex =>
+            ex.id === updated.id ? { ...ex, clientNote: updated.clientNote } : ex
+          ),
+        })),
       }))
     );
     addToast({
@@ -414,10 +442,15 @@ export default function ClientDashboard() {
     });
   }
 
+  function getExercises(r: Routine) {
+    return r.days && r.days.length > 0 ? r.days.flatMap(d => d.exercises) : r.exercises;
+  }
   const current  = routines[0] ?? null;
-  const previous = routines[1] ?? null;
-  const done  = current?.exercises.filter(e => e.completed).length ?? 0;
-  const total = current?.exercises.length ?? 0;
+  const allDone  = routines.reduce((s, r) => s + getExercises(r).filter(e => e.completed).length, 0);
+  const allTotal = routines.reduce((s, r) => s + getExercises(r).length, 0);
+  const currentExs = current ? getExercises(current) : [];
+  const done  = currentExs.filter(e => e.completed).length;
+  const total = currentExs.length;
   const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
 
   if (loading) return <LoadingScreen />;
@@ -443,11 +476,11 @@ export default function ClientDashboard() {
                   Buenas, <span className="text-white font-semibold">{session?.user?.name?.split(" ")[0]}</span> 👋
                 </p>
                 <h1 className="text-xl sm:text-2xl font-black text-white mt-0.5 tracking-tight">
-                  {pct === 100 ? "¡Semana completada!" : pct >= 66 ? "¡Vas muy bien!" : pct > 0 ? "¡A entrenar!" : "¡Comenzá hoy!"}
+                  {pct === 100 ? "¡Completado! 🏆" : pct >= 66 ? "¡Vas muy bien!" : pct > 0 ? "¡A entrenar!" : "¡Comenzá hoy!"}
                 </h1>
                 <p className="text-zinc-400 text-sm mt-1">{done} de {total} ejercicios completados</p>
-                {pct === 100 && (
-                  <p className="text-emerald-400 text-xs mt-2 font-medium">¡Completaste todos los ejercicios de la semana! 🏆</p>
+                {allTotal > total && (
+                  <p className="text-zinc-600 text-xs mt-1">{allDone} de {allTotal} en total</p>
                 )}
               </div>
             </div>
@@ -460,52 +493,25 @@ export default function ClientDashboard() {
         )}
       </div>
 
-      {/* Tabs */}
-      {(current || previous) && (
-        <div className="flex gap-1 bg-zinc-900/50 border border-white/[0.05] rounded-xl p-1 w-fit mb-5 animate-fade-in">
-          <TabBtn active={tab === "current"} onClick={() => setTab("current")}>Esta semana</TabBtn>
-          {previous && (
-            <TabBtn active={tab === "previous"} onClick={() => setTab("previous")}>Semana anterior</TabBtn>
-          )}
-        </div>
-      )}
-
-      {/* Content */}
-      <div className="animate-slide-up-sm" key={tab}>
-        {tab === "current" && (
-          current
-            ? <RoutineCard
-                routine={current}
-                onToggle={handleToggle}
-                onNote={handleNote}
-                clientName={session?.user?.name}
-                videoMap={videoMap}
-                onFeedbackSaved={handleFeedbackSaved}
-                badge={<span className="text-xs bg-orange-500/15 text-orange-400 border border-orange-500/20 px-2 py-0.5 rounded-full font-medium">Semana actual</span>}
-              />
-            : <EmptyState message="Sin rutina esta semana" sub="Tu entrenador todavía no asignó ejercicios para esta semana. ¡Pronto llegará!" />
+      {/* Rutinas — todas apiladas */}
+      <div className="animate-slide-up-sm space-y-4">
+        {routines.length === 0 && (
+          <EmptyState message="Sin rutina asignada" sub="Tu entrenador todavía no asignó ejercicios. ¡Pronto llegará!" />
         )}
-
-        {tab === "previous" && previous && (
-          <div>
-            <RoutineCard
-              routine={previous}
-              readonly
-              clientName={session?.user?.name}
-              videoMap={videoMap}
-              badge={<span className="text-xs bg-zinc-700/60 text-zinc-400 px-2 py-0.5 rounded-full font-medium">Semana pasada</span>}
-            />
-            <p className="text-xs text-zinc-600 text-center mt-3">Solo lectura — progreso de la semana pasada</p>
-          </div>
-        )}
+        {routines.map((routine, idx) => (
+          <RoutineCard
+            key={routine.id}
+            routine={routine}
+            onToggle={idx === 0 ? handleToggle : undefined}
+            onNote={idx === 0 ? handleNote : undefined}
+            readonly={idx !== 0}
+            clientName={session?.user?.name}
+            videoMap={videoMap}
+            onFeedbackSaved={idx === 0 ? handleFeedbackSaved : undefined}
+          />
+        ))}
       </div>
 
-      {routines.length === 0 && !loading && (
-        <EmptyState
-          message="Todavía no tenés rutinas asignadas"
-          sub="Cuando tu entrenador te asigne la primera rutina, aparecerá aquí con todos los ejercicios y tu progreso semanal."
-        />
-      )}
     </div>
   );
 }
@@ -625,17 +631,6 @@ function WeeklyRating({ routineId, initial, onSaved }: {
 }
 
 /* ─── Sub-components ─────────────────────────────────────────────────────────── */
-function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button onClick={onClick}
-      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-        active ? "bg-zinc-800 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-300"
-      }`}>
-      {children}
-    </button>
-  );
-}
-
 function EmptyState({ message, sub }: { message: string; sub?: string }) {
   return (
     <div className="border border-dashed border-white/10 rounded-2xl p-12 text-center animate-fade-in">

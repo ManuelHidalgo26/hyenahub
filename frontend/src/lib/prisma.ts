@@ -5,16 +5,31 @@ declare global {
   var prisma: PrismaClient | undefined;
 }
 
-const prisma =
-  global.prisma ??
-  new PrismaClient({
-    datasources: {
-      db: {
-        // connect_timeout=15 gives Neon time to wake from cold start on Vercel serverless
-        url: process.env.DATABASE_URL + (process.env.DATABASE_URL?.includes("?") ? "&" : "?") + "connect_timeout=15",
-      },
-    },
-  });
+function buildDatasourceUrl(): string {
+  const url = process.env.DATABASE_URL ?? "";
+  if (!url) return url;
+  const addParam = (base: string, param: string) =>
+    base.includes("?") ? `${base}&${param}` : `${base}?${param}`;
+  // Pooler Transaction mode (port 6543) needs pgbouncer=true
+  if (url.includes("pooler.supabase.com") && url.includes(":6543")) {
+    return url.includes("pgbouncer=true") ? url : addParam(url, "pgbouncer=true");
+  }
+  // Direct or Session mode: limit connections for serverless
+  if (!url.includes("connection_limit")) {
+    return addParam(url, "connection_limit=1&pool_timeout=2");
+  }
+  return url;
+}
+
+if (process.env.NODE_ENV === "production") {
+  const url = process.env.DATABASE_URL ?? "";
+  const usernameMatch = url.match(/\/\/([^:]+):/);
+  const hostMatch = url.match(/@([^/?]+)/);
+  console.log("[prisma] username:", usernameMatch?.[1] ?? "NOT SET");
+  console.log("[prisma] host:", hostMatch?.[1] ?? "NOT SET");
+}
+
+const prisma = global.prisma ?? new PrismaClient({ datasourceUrl: buildDatasourceUrl() });
 
 if (process.env.NODE_ENV !== "production") global.prisma = prisma;
 
