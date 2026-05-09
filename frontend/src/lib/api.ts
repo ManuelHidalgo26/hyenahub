@@ -1,9 +1,19 @@
 import axios from "axios";
-import { signOut } from "next-auth/react";
+import { getSession, signOut } from "next-auth/react";
 
 const api = axios.create({
   baseURL: "/api",
   timeout: 30000,
+});
+
+// Sign out immediately if the refresh token has expired (before wasting a network call)
+api.interceptors.request.use(async (config) => {
+  const session = await getSession();
+  if (session?.error === "RefreshTokenError") {
+    await signOut({ redirect: true, callbackUrl: "/login" });
+    return Promise.reject(new Error("Sesión expirada"));
+  }
+  return config;
 });
 
 api.interceptors.response.use(
