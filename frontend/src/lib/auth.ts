@@ -1,12 +1,8 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/prisma";
 import { Role } from "@/types";
-
-const BACKEND = (
-  process.env.BACKEND_URL ??
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, "") ??
-  "http://localhost:4000"
-);
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -19,24 +15,28 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
         try {
-          const res = await fetch(`${BACKEND}/api/auth/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: credentials.email, password: credentials.password }),
+          const user = await prisma.user.findUnique({
+            where:   { email: credentials.email },
+            include: { trainer: true, client: true },
           });
 
-          if (!res.ok) return null;
+          if (!user) return null;
+          const valid = await bcrypt.compare(credentials.password, user.password);
+          if (!valid) return null;
 
-          const { data } = await res.json();
-          if (!data?.accessToken || !data?.user) return null;
+          const profileId =
+            user.role === "TRAINER"
+              ? user.trainer?.id ?? ""
+              : user.role === "CLIENT"
+              ? user.client?.id ?? ""
+              : user.id;
 
           return {
-            id:           data.user.id,
-            email:        data.user.email,
-            name:         data.user.name,
-            role:         data.user.role as Role,
-            profileId:    data.user.profileId,
-            backendToken: data.accessToken,
+            id:        user.id,
+            email:     user.email,
+            name:      user.name,
+            role:      user.role as Role,
+            profileId,
           };
         } catch {
           return null;
@@ -48,10 +48,9 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id           = user.id;
-        token.role         = (user as { role: Role }).role;
-        token.profileId    = (user as { profileId: string }).profileId;
-        token.backendToken = (user as unknown as { backendToken: string }).backendToken;
+        token.id        = user.id;
+        token.role      = (user as { role: Role }).role;
+        token.profileId = (user as { profileId: string }).profileId;
       }
       return token;
     },
@@ -61,7 +60,6 @@ export const authOptions: NextAuthOptions = {
         session.user.id        = token.id        as string;
         session.user.role      = token.role      as Role;
         session.user.profileId = token.profileId as string;
-        session.backendToken   = token.backendToken as string;
       }
       return session;
     },
@@ -74,7 +72,7 @@ export const authOptions: NextAuthOptions = {
 
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60,
+    maxAge:   30 * 24 * 60 * 60,
   },
 
   secret: process.env.NEXTAUTH_SECRET,

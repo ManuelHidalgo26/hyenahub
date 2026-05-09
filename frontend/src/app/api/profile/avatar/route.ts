@@ -1,8 +1,11 @@
 import { NextRequest } from "next/server";
-import { proxyToBackend } from "@/lib/backend-proxy";
 
 export const dynamic = "force-dynamic";
 
-export async function PATCH(req: NextRequest) {
-  return proxyToBackend(req, "profile/avatar", "PATCH");
+// Avatar updates are handled by PATCH /api/profile
+export { PATCH } from "@/app/api/profile/route";
+
+// Keep file to avoid 404 on existing clients calling /api/profile/avatar
+export async function GET(req: NextRequest) {
+  return new Response(null, { status: 405 });
 }
