@@ -463,13 +463,13 @@ export default function ClientDashboard() {
         title: note.trim() ? "Nota guardada" : "Nota eliminada",
         message: note.trim() ? "Tu nota quedó registrada en el ejercicio." : "La nota fue borrada correctamente.",
       });
-    } catch {
+    } catch (err) {
       addToast({
         type: "warning",
         title: "Error al guardar",
         message: "No se pudo guardar la nota. Intentá de nuevo.",
       });
-      throw;
+      throw err;
     }
   }
 
