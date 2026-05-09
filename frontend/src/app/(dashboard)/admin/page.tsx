@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface Stats {
   totalUsers: number; totalTrainers: number; totalClients: number;
@@ -45,6 +46,7 @@ export default function AdminDashboard() {
   const [search,   setSearch]   = useState("");
   const [roleFilter, setRoleFilter] = useState<"" | "ADMIN" | "TRAINER" | "CLIENT">("");
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
 
   function load() {
     setLoading(true);
@@ -61,9 +63,9 @@ export default function AdminDashboard() {
 
   useEffect(() => { load(); }, []);
 
-  async function handleDelete(userId: string, name: string) {
-    if (!confirm(`¿Eliminar permanentemente al usuario "${name}"? Esta acción no se puede deshacer.`)) return;
+  async function handleDelete(userId: string) {
     setDeleting(userId);
+    setPendingDelete(null);
     try {
       await api.delete(`/admin/users/${userId}`);
       setUsers(prev => prev.filter(u => u.id !== userId));
@@ -180,7 +182,7 @@ export default function AdminDashboard() {
                       <div className="col-span-2 flex justify-end">
                         {u.role !== "ADMIN" && (
                           <button
-                            onClick={() => handleDelete(u.id, u.name)}
+                            onClick={() => setPendingDelete({ id: u.id, name: u.name })}
                             disabled={deleting === u.id}
                             className="text-xs text-zinc-700 hover:text-red-400 transition-colors disabled:opacity-50 px-2 py-1 rounded-lg hover:bg-red-500/5"
                           >
@@ -216,7 +218,7 @@ export default function AdminDashboard() {
                         {new Date(u.createdAt).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}
                       </p>
                       {u.role !== "ADMIN" && (
-                        <button onClick={() => handleDelete(u.id, u.name)} disabled={deleting === u.id}
+                        <button onClick={() => setPendingDelete({ id: u.id, name: u.name })} disabled={deleting === u.id}
                           className="text-xs text-zinc-700 hover:text-red-400 transition-colors disabled:opacity-50">
                           {deleting === u.id ? "Eliminando..." : "Eliminar"}
                         </button>
@@ -228,6 +230,16 @@ export default function AdminDashboard() {
             </>
           )}
         </div>
+      )}
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title={`¿Eliminar a ${pendingDelete.name}?`}
+          message="Esta acción no se puede deshacer. El usuario perderá acceso permanentemente a la plataforma."
+          confirmLabel="Eliminar usuario"
+          onConfirm={() => handleDelete(pendingDelete.id)}
+          onCancel={() => setPendingDelete(null)}
+        />
       )}
 
       {/* Trainers tab */}

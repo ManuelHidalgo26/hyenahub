@@ -39,7 +39,7 @@ export default function TrainerDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <Loader text="Cargando dashboard..." />;
+  if (loading) return <TrainerSkeleton />;
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Buenos días" : hour < 18 ? "Buenas tardes" : "Buenas noches";
@@ -150,12 +150,39 @@ export default function TrainerDashboard() {
   );
 }
 
-function Loader({ text }: { text: string }) {
+function TrainerSkeleton() {
   return (
-    <div className="min-h-full flex items-center justify-center">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-2 border-zinc-800 border-t-orange-500 rounded-full animate-spin" />
-        <p className="text-zinc-600 text-sm">{text}</p>
+    <div className="min-h-full p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto animate-pulse">
+      <div className="mb-8 space-y-2">
+        <div className="h-3 bg-zinc-800 rounded-full w-24" />
+        <div className="h-7 bg-zinc-800 rounded-full w-48" />
+        <div className="h-3 bg-zinc-800 rounded-full w-36" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-10">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="h-28 rounded-2xl bg-zinc-800" />
+        ))}
+      </div>
+      <div className="h-5 bg-zinc-800 rounded-full w-32 mb-5" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {[1, 2, 3, 4, 5, 6].map(i => (
+          <div key={i} className="bg-zinc-900 border border-white/[0.06] rounded-2xl p-5 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-zinc-800 shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3 bg-zinc-800 rounded-full w-3/4" />
+                <div className="h-2.5 bg-zinc-800 rounded-full w-1/2" />
+              </div>
+            </div>
+            <div className="h-2.5 bg-zinc-800 rounded-full w-full" />
+            <div className="h-2.5 bg-zinc-800 rounded-full w-2/3" />
+            <div className="h-1.5 bg-zinc-800 rounded-full w-full" />
+            <div className="flex gap-2">
+              <div className="h-6 w-20 bg-zinc-800 rounded-full" />
+              <div className="h-6 w-16 bg-zinc-800 rounded-full" />
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

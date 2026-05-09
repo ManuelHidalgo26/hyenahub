@@ -73,16 +73,24 @@ function ExerciseRow({ ex, onToggle, onNote, readonly, videoUrl, videoTitle }: {
     if (readonly || !onToggle) return;
     e.stopPropagation();
     setBusy(true);
-    await onToggle(ex.id);
-    setBusy(false);
+    try {
+      await onToggle(ex.id);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleNoteSubmit() {
     if (!onNote) return;
     setSavingNote(true);
-    await onNote(ex.id, noteVal);
-    setSavingNote(false);
-    setShowNote(false);
+    try {
+      await onNote(ex.id, noteVal);
+      setShowNote(false);
+    } catch {
+      // error toast shown by parent handleNote
+    } finally {
+      setSavingNote(false);
+    }
   }
 
   return (
@@ -96,17 +104,23 @@ function ExerciseRow({ ex, onToggle, onNote, readonly, videoUrl, videoTitle }: {
         {/* Checkbox */}
         {!readonly ? (
           <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all duration-200
-            ${busy ? "opacity-50 scale-90" : ""}
-            ${ex.completed
-              ? "bg-gradient-to-br from-orange-500 to-amber-500 border-transparent shadow-lg shadow-orange-500/30"
-              : "border-zinc-600 group-hover:border-orange-500/60"
+            ${busy
+              ? "border-orange-500/30 bg-orange-500/5"
+              : ex.completed
+                ? "bg-gradient-to-br from-orange-500 to-amber-500 border-transparent shadow-lg shadow-orange-500/30"
+                : "border-zinc-600 group-hover:border-orange-500/60"
             }`}
           >
-            {ex.completed && (
+            {busy ? (
+              <svg className="w-3.5 h-3.5 text-orange-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : ex.completed ? (
               <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
-            )}
+            ) : null}
           </div>
         ) : (
           <div className={`w-2 h-2 rounded-full shrink-0 ${ex.completed ? "bg-emerald-400" : "bg-zinc-700"}`} />
@@ -383,35 +397,43 @@ export default function ClientDashboard() {
   useEffect(() => { load(); }, []);
 
   async function handleToggle(exerciseId: string) {
-    const res = await api.patch(`/routines/exercises/${exerciseId}/complete`);
-    const updated: Exercise = res.data.data;
+    try {
+      const res = await api.patch(`/routines/exercises/${exerciseId}/complete`);
+      const updated: Exercise = res.data.data;
 
-    setRoutines(prev => {
-      function patchEx(ex: Exercise) {
-        return ex.id === updated.id ? { ...ex, ...updated } : ex;
-      }
-      const next = prev.map(r => ({
-        ...r,
-        exercises: r.exercises.map(patchEx),
-        days: r.days.map(d => ({ ...d, exercises: d.exercises.map(patchEx) })),
-      }));
-
-      const current = next[0];
-      if (current) {
-        const allDone = getExercises(current).every(e => e.completed);
-
-        if (allDone && !sessionFiredRef.current) {
-          sessionFiredRef.current = true;
-          addToast({
-            type: "success",
-            title: "¡Semana completada! 🏆",
-            message: "Completaste todos los ejercicios de esta semana. ¡Sos una bestia!",
-          });
+      setRoutines(prev => {
+        function patchEx(ex: Exercise) {
+          return ex.id === updated.id ? { ...ex, ...updated } : ex;
         }
-        if (!allDone) sessionFiredRef.current = false;
-      }
-      return next;
-    });
+        const next = prev.map(r => ({
+          ...r,
+          exercises: r.exercises.map(patchEx),
+          days: r.days.map(d => ({ ...d, exercises: d.exercises.map(patchEx) })),
+        }));
+
+        const current = next[0];
+        if (current) {
+          const allDone = getExercises(current).every(e => e.completed);
+
+          if (allDone && !sessionFiredRef.current) {
+            sessionFiredRef.current = true;
+            addToast({
+              type: "success",
+              title: "¡Semana completada! 🏆",
+              message: "Completaste todos los ejercicios de esta semana. ¡Sos una bestia!",
+            });
+          }
+          if (!allDone) sessionFiredRef.current = false;
+        }
+        return next;
+      });
+    } catch {
+      addToast({
+        type: "warning",
+        title: "Error al actualizar",
+        message: "No se pudo marcar el ejercicio. Intentá de nuevo.",
+      });
+    }
   }
 
   function handleFeedbackSaved(routineId: string, fb: WeeklyFeedback) {
@@ -419,27 +441,36 @@ export default function ClientDashboard() {
   }
 
   async function handleNote(exerciseId: string, note: string) {
-    const res = await api.patch(`/routines/exercises/${exerciseId}/note`, { note });
-    const updated: Exercise = res.data.data;
-    setRoutines(prev =>
-      prev.map(r => ({
-        ...r,
-        exercises: r.exercises.map(ex =>
-          ex.id === updated.id ? { ...ex, clientNote: updated.clientNote } : ex
-        ),
-        days: r.days.map(d => ({
-          ...d,
-          exercises: d.exercises.map(ex =>
+    try {
+      const res = await api.patch(`/routines/exercises/${exerciseId}/note`, { note });
+      const updated: Exercise = res.data.data;
+      setRoutines(prev =>
+        prev.map(r => ({
+          ...r,
+          exercises: r.exercises.map(ex =>
             ex.id === updated.id ? { ...ex, clientNote: updated.clientNote } : ex
           ),
-        })),
-      }))
-    );
-    addToast({
-      type: note.trim() ? "success" : "info",
-      title: note.trim() ? "Nota guardada" : "Nota eliminada",
-      message: note.trim() ? "Tu nota quedó registrada en el ejercicio." : "La nota fue borrada correctamente.",
-    });
+          days: r.days.map(d => ({
+            ...d,
+            exercises: d.exercises.map(ex =>
+              ex.id === updated.id ? { ...ex, clientNote: updated.clientNote } : ex
+            ),
+          })),
+        }))
+      );
+      addToast({
+        type: note.trim() ? "success" : "info",
+        title: note.trim() ? "Nota guardada" : "Nota eliminada",
+        message: note.trim() ? "Tu nota quedó registrada en el ejercicio." : "La nota fue borrada correctamente.",
+      });
+    } catch (err) {
+      addToast({
+        type: "warning",
+        title: "Error al guardar",
+        message: "No se pudo guardar la nota. Intentá de nuevo.",
+      });
+      throw err;
+    }
   }
 
   function getExercises(r: Routine) {

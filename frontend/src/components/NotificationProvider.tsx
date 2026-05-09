@@ -70,6 +70,18 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     timers.current.set(id, timer);
   }, [removeToast]);
 
+  const pauseToast = useCallback((id: string) => {
+    const t = timers.current.get(id);
+    if (t) { clearTimeout(t); timers.current.delete(id); }
+  }, []);
+
+  const resumeToast = useCallback((id: string) => {
+    if (!timers.current.has(id)) {
+      const timer = setTimeout(() => removeToast(id), 5000);
+      timers.current.set(id, timer);
+    }
+  }, [removeToast]);
+
   /* ── Pusher connection ──────────────────────────────────────────────────── */
   useEffect(() => {
     const userId = session?.user?.id;
@@ -123,7 +135,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   return (
     <NotifContext.Provider value={{ toasts, addToast, removeToast, unreadMessages, clearUnreadMessages }}>
       {children}
-      <ToastContainer toasts={toasts} onRemove={removeToast} />
+      <ToastContainer toasts={toasts} onRemove={removeToast} onPause={pauseToast} onResume={resumeToast} />
     </NotifContext.Provider>
   );
 }
@@ -152,19 +164,29 @@ const TYPE_STYLES: Record<ToastType, { bar: string; icon: React.ReactNode; ring:
   },
 };
 
-function ToastContainer({ toasts, onRemove }: { toasts: Toast[]; onRemove: (id: string) => void }) {
+function ToastContainer({ toasts, onRemove, onPause, onResume }: {
+  toasts: Toast[];
+  onRemove: (id: string) => void;
+  onPause: (id: string) => void;
+  onResume: (id: string) => void;
+}) {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-3 pointer-events-none">
+    <div role="region" aria-label="Notificaciones" className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-3 pointer-events-none">
       {toasts.map(toast => (
-        <ToastCard key={toast.id} toast={toast} onRemove={onRemove} />
+        <ToastCard key={toast.id} toast={toast} onRemove={onRemove} onPause={onPause} onResume={onResume} />
       ))}
     </div>
   );
 }
 
-function ToastCard({ toast, onRemove }: { toast: Toast; onRemove: (id: string) => void }) {
+function ToastCard({ toast, onRemove, onPause, onResume }: {
+  toast: Toast;
+  onRemove: (id: string) => void;
+  onPause: (id: string) => void;
+  onResume: (id: string) => void;
+}) {
   const [visible, setVisible] = useState(false);
   const s = TYPE_STYLES[toast.type];
 
@@ -180,6 +202,10 @@ function ToastCard({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
 
   return (
     <div
+      role="alert"
+      aria-live="assertive"
+      onMouseEnter={() => onPause(toast.id)}
+      onMouseLeave={() => onResume(toast.id)}
       className={`pointer-events-auto w-80 rounded-2xl overflow-hidden bg-zinc-900 ring-1 ${s.ring} shadow-2xl shadow-black/60
         transition-all duration-300 ease-out
         ${visible ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-4 scale-95"}`}

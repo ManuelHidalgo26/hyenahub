@@ -1,8 +1,7 @@
-import { NextRequest } from "next/server";
-import { proxyToBackend } from "@/lib/backend-proxy";
+import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
-  return proxyToBackend(req, "health", "GET", undefined, false);
+export async function GET() {
+  return NextResponse.json({ success: true, status: "ok" });
 }
