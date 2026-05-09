@@ -31,22 +31,28 @@ export default function RegisterPage() {
   const [trainerId, setTrainerId] = useState("");
 
   /* ── Trainers list (for CLIENT) ─────────────────────────────── */
-  const [trainers,       setTrainers]       = useState<TrainerOption[]>([]);
+  const [trainers,        setTrainers]        = useState<TrainerOption[]>([]);
   const [loadingTrainers, setLoadingTrainers] = useState(false);
+  const [trainersFetchErr, setTrainersFetchErr] = useState(false);
 
   /* ── UI state ───────────────────────────────────────────────── */
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState("");
 
   /* ── Fetch trainers when CLIENT is selected ─────────────────── */
-  useEffect(() => {
-    if (role !== "CLIENT") return;
+  function fetchTrainers() {
     setLoadingTrainers(true);
+    setTrainersFetchErr(false);
     fetch(`${API}/trainers`)
       .then(r => r.json())
-      .then(d => { if (d.success) setTrainers(d.data); })
-      .catch(() => {})
+      .then(d => { if (d.success) setTrainers(d.data); else setTrainersFetchErr(true); })
+      .catch(() => setTrainersFetchErr(true))
       .finally(() => setLoadingTrainers(false));
+  }
+
+  useEffect(() => {
+    if (role !== "CLIENT") return;
+    fetchTrainers();
   }, [role]);
 
   function selectRole(r: Role) {
@@ -217,8 +223,23 @@ export default function RegisterPage() {
                       <span className="w-4 h-4 border-2 border-zinc-700 border-t-orange-500 rounded-full animate-spin" />
                       Cargando entrenadores...
                     </div>
+                  ) : trainersFetchErr ? (
+                    <div className="flex items-center justify-between py-2">
+                      <p className="text-xs text-red-400">Error al cargar entrenadores.</p>
+                      <button type="button" onClick={fetchTrainers} className="text-xs text-orange-500 hover:text-orange-400 transition-colors ml-2">
+                        Reintentar
+                      </button>
+                    </div>
                   ) : trainers.length === 0 ? (
-                    <p className="text-xs text-zinc-600 py-2">No hay entrenadores disponibles aún.</p>
+                    <div className="py-2 space-y-1">
+                      <p className="text-xs text-zinc-500">No hay entrenadores disponibles aún.</p>
+                      <p className="text-xs text-zinc-600 leading-relaxed">
+                        Para registrarte como cliente necesitás un entrenador. Pedile a tu entrenador que primero cree su cuenta en HyenaHub.
+                      </p>
+                      <button type="button" onClick={fetchTrainers} className="text-xs text-orange-500 hover:text-orange-400 transition-colors">
+                        Actualizar lista
+                      </button>
+                    </div>
                   ) : (
                     <div className="space-y-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
                       {trainers.map(t => (
