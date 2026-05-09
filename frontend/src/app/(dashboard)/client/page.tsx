@@ -6,7 +6,7 @@ import api from "@/lib/api";
 import { useNotifications } from "@/components/NotificationProvider";
 import { ErrorBanner } from "@/components/ErrorBanner";
 
-/* ─── Types ─────────────────────────────────────────────────────────────────── */
+/* ─── Types ────────────────────────────────────────────────────────────────────────────── */
 interface Exercise {
   id: string; name: string; sets: number; reps: number;
   weight: number | null; notes: string | null; clientNote: string | null;
@@ -26,7 +26,7 @@ interface TrainerVideo {
   id: string; title: string; videoUrl: string; exercise: string | null;
 }
 
-/* ─── Progress Ring ──────────────────────────────────────────────────────────── */
+/* ─── Progress Ring ──────────────────────────────────────────────────────────────────── */
 function ProgressRing({ pct }: { pct: number }) {
   const r = 38;
   const circ = 2 * Math.PI * r;
@@ -51,7 +51,7 @@ function ProgressRing({ pct }: { pct: number }) {
   );
 }
 
-/* ─── Exercise Row ───────────────────────────────────────────────────────────── */
+/* ─── Exercise Row ────────────────────────────────────────────────────────────────────── */
 function ExerciseRow({ ex, onToggle, onNote, readonly, videoUrl, videoTitle }: {
   ex: Exercise;
   onToggle?: (id: string) => Promise<void>;
@@ -195,13 +195,17 @@ function ExerciseRow({ ex, onToggle, onNote, readonly, videoUrl, videoTitle }: {
         <div className="px-5 pb-4 -mt-1" onClick={e => e.stopPropagation()}>
           <textarea
             value={noteVal}
-            onChange={e => setNoteVal(e.target.value)}
+            onChange={e => setNoteVal(e.target.value.slice(0, 300))}
             placeholder="Ej: bajé el peso a 60kg, sentí molestia en el hombro..."
             rows={2}
             autoFocus
+            maxLength={300}
             onKeyDown={e => { if (e.key === "Enter" && e.ctrlKey) handleNoteSubmit(); }}
             className="w-full bg-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2 resize-none border border-white/[0.06] focus:outline-none focus:border-orange-500/40 placeholder:text-zinc-700"
           />
+          <p className={`text-right text-[10px] mt-0.5 tabular-nums ${noteVal.length >= 280 ? "text-orange-400" : "text-zinc-700"}`}>
+            {noteVal.length}/300
+          </p>
           <div className="flex gap-2 mt-1.5">
             <button
               onClick={handleNoteSubmit}
@@ -258,7 +262,7 @@ function VideoPlayer({ url }: { url: string }) {
   return <video src={url} controls className="w-full aspect-video rounded-xl bg-zinc-950" />;
 }
 
-/* ─── Routine Card ────────────────────────────────────────────────────────────── */
+/* ─── Routine Card ────────────────────────────────────────────────────────────────────────── */
 function RoutineCard({ routine, onToggle, onNote, readonly, clientName, videoMap, onFeedbackSaved }: {
   routine: Routine;
   onToggle?: (id: string) => Promise<void>;
@@ -364,7 +368,7 @@ function RoutineCard({ routine, onToggle, onNote, readonly, clientName, videoMap
   );
 }
 
-/* ─── Page ──────────────────────────────────────────────────────────────────── */
+/* ─── Page ──────────────────────────────────────────────────────────────────────────── */
 export default function ClientDashboard() {
   const { data: session } = useSession();
   const { addToast } = useNotifications();
@@ -547,7 +551,7 @@ export default function ClientDashboard() {
   );
 }
 
-/* ─── Weekly Rating ──────────────────────────────────────────────────────────── */
+/* ─── Weekly Rating ─────────────────────────────────────────────────────────────────── */
 function WeeklyRating({ routineId, initial, onSaved }: {
   routineId: string;
   initial?: WeeklyFeedback | null;
@@ -661,7 +665,7 @@ function WeeklyRating({ routineId, initial, onSaved }: {
   );
 }
 
-/* ─── Sub-components ─────────────────────────────────────────────────────────── */
+/* ─── Sub-components ─────────────────────────────────────────────────────────────────────── */
 function EmptyState({ message, sub }: { message: string; sub?: string }) {
   return (
     <div className="border border-dashed border-white/10 rounded-2xl p-12 text-center animate-fade-in">

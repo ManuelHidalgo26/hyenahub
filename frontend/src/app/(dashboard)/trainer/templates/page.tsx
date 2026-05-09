@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import api from "@/lib/api";
 
-/* ─── Types ──────────────────────────────────────────────────────────────── */
+/* ─── Types ────────────────────────────────────────────────────────────────────────────── */
 interface ExForm { name: string; sets: string; reps: string; weight: string; notes: string; }
 const EMPTY_EX: ExForm = { name: "", sets: "3", reps: "10", weight: "", notes: "" };
 
@@ -27,7 +27,7 @@ const EXERCISE_SUGGESTIONS = [
 ];
 const MEAL_SUGGESTIONS = ["Desayuno","Almuerzo","Cena","Colación","Merienda","Pre-entreno","Post-entreno"];
 
-/* ─── Page ───────────────────────────────────────────────────────────────── */
+/* ─── Page ──────────────────────────────────────────────────────────────────────────── */
 export default function TemplatesPage() {
   const [tab, setTab] = useState<"routines" | "diets">("routines");
 
@@ -93,7 +93,11 @@ export default function TemplatesPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function cancelRoutineForm() { setRShowForm(false); setREditingId(null); setRName(""); setRDesc(""); setRDuration("0"); setExercises([{ ...EMPTY_EX }]); setRError(""); }
+  function cancelRoutineForm(force = false) {
+    const dirty = rName.trim() !== "" || exercises.some(e => e.name.trim() !== "");
+    if (!force && dirty && !confirm("¿Salir sin guardar? Los cambios se perderán.")) return;
+    setRShowForm(false); setREditingId(null); setRName(""); setRDesc(""); setRDuration("0"); setExercises([{ ...EMPTY_EX }]); setRError("");
+  }
 
   async function submitRoutine(e: React.FormEvent) {
     e.preventDefault(); setRError("");
@@ -109,7 +113,7 @@ export default function TemplatesPage() {
         const res = await api.post("/templates", { name: rName, description: rDesc || undefined, durationWeeks: dur, exercises: exPayload });
         setRTemplates(p => [res.data.data, ...p]);
       }
-      cancelRoutineForm();
+      cancelRoutineForm(true);
     } catch { setRError("Error al guardar la plantilla."); }
     finally { setRSubmitting(false); }
   }
@@ -139,7 +143,11 @@ export default function TemplatesPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function cancelDietForm() { setDShowForm(false); setDEditingId(null); setDName(""); setDDesc(""); setDCals(""); setDProtein(""); setDCarbs(""); setDFat(""); setMeals([{ ...EMPTY_MEAL }]); setDError(""); }
+  function cancelDietForm(force = false) {
+    const dirty = dName.trim() !== "" || meals.some(m => m.name.trim() !== "" || m.foods.trim() !== "");
+    if (!force && dirty && !confirm("¿Salir sin guardar? Los cambios se perderán.")) return;
+    setDShowForm(false); setDEditingId(null); setDName(""); setDDesc(""); setDCals(""); setDProtein(""); setDCarbs(""); setDFat(""); setMeals([{ ...EMPTY_MEAL }]); setDError("");
+  }
 
   async function submitDiet(e: React.FormEvent) {
     e.preventDefault(); setDError("");
@@ -155,7 +163,7 @@ export default function TemplatesPage() {
         const res = await api.post("/diet-templates", body);
         setDTemplates(p => [res.data.data, ...p]);
       }
-      cancelDietForm();
+      cancelDietForm(true);
     } catch { setDError("Error al guardar la plantilla."); }
     finally { setDSubmitting(false); }
   }
@@ -191,7 +199,7 @@ export default function TemplatesPage() {
         <div>
           <div className="flex items-center justify-between mb-5">
             <p className="text-sm text-zinc-500">{rTemplates.length} plantilla{rTemplates.length !== 1 ? "s" : ""}</p>
-            <button onClick={() => rShowForm ? cancelRoutineForm() : setRShowForm(true)}
+            <button onClick={() => rShowForm ? cancelRoutineForm(false) : setRShowForm(true)}
               className={`shrink-0 ${rShowForm ? "btn-ghost" : "btn-primary"}`}>
               {rShowForm ? "Cancelar" : (<><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg> Nueva plantilla</>)}
             </button>
@@ -271,7 +279,7 @@ export default function TemplatesPage() {
                 <button type="submit" disabled={rSubmitting} className="btn-primary">
                   {rSubmitting ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Guardando...</> : rEditingId ? "Guardar cambios" : "Crear plantilla"}
                 </button>
-                <button type="button" onClick={cancelRoutineForm} className="btn-ghost">Cancelar</button>
+                <button type="button" onClick={() => cancelRoutineForm(false)} className="btn-ghost">Cancelar</button>
               </div>
             </form>
           )}
@@ -330,7 +338,7 @@ export default function TemplatesPage() {
         <div>
           <div className="flex items-center justify-between mb-5">
             <p className="text-sm text-zinc-500">{dTemplates.length} plantilla{dTemplates.length !== 1 ? "s" : ""}</p>
-            <button onClick={() => dShowForm ? cancelDietForm() : setDShowForm(true)}
+            <button onClick={() => dShowForm ? cancelDietForm(false) : setDShowForm(true)}
               className={`shrink-0 ${dShowForm ? "btn-ghost" : "btn-primary"}`}>
               {dShowForm ? "Cancelar" : (<><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg> Nueva plantilla</>)}
             </button>
@@ -413,7 +421,7 @@ export default function TemplatesPage() {
                 <button type="submit" disabled={dSubmitting} className="btn-primary">
                   {dSubmitting ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Guardando...</> : dEditingId ? "Guardar cambios" : "Crear plantilla"}
                 </button>
-                <button type="button" onClick={cancelDietForm} className="btn-ghost">Cancelar</button>
+                <button type="button" onClick={() => cancelDietForm(false)} className="btn-ghost">Cancelar</button>
               </div>
             </form>
           )}
