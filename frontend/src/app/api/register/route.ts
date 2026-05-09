@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { proxyToBackend } from "@/lib/backend-proxy";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 const RegisterSchema = z.object({
-  name:      z.string().min(2).max(100),
-  email:     z.string().email().max(255),
-  password:  z.string().min(6),
-  role:      z.enum(["TRAINER", "CLIENT"]),
-  trainerId: z.string().optional(),
+  name:       z.string().min(2).max(100),
+  email:      z.string().email().max(255),
+  password:   z.string().min(6),
+  role:       z.enum(["TRAINER", "CLIENT"]),
+  trainerId:  z.string().optional(),
+  goal:       z.string().optional(),
+  experience: z.string().optional(),
+  equipment:  z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -21,5 +25,69 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  return proxyToBackend(req, "auth/register", "POST", result.data, false);
+
+  const { name, email, password, role, trainerId, goal, experience, equipment } = result.data;
+
+  if (role === "CLIENT" && !trainerId) {
+    return NextResponse.json(
+      { success: false, error: { trainerId: ["El trainerId es requerido para clientes"] } },
+      { status: 400 }
+    );
+  }
+
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) {
+    return NextResponse.json(
+      { success: false, error: { email: ["Este email ya está registrado"] } },
+      { status: 409 }
+    );
+  }
+
+  if (role === "CLIENT" && trainerId) {
+    const trainer = await prisma.trainer.findUnique({ where: { id: trainerId } });
+    if (!trainer) {
+      return NextResponse.json(
+        { success: false, error: { trainerId: ["Entrenador no encontrado"] } },
+        { status: 404 }
+      );
+    }
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  const user = await prisma.user.create({
+    data: {
+      name,
+      email,
+      password: hashedPassword,
+      role,
+      ...(role === "TRAINER" && {
+        trainer: { create: {} },
+      }),
+      ...(role === "CLIENT" && trainerId && {
+        client: {
+          create: {
+            trainerId,
+            goal:       goal       ?? "",
+            experience: experience ?? "",
+            equipment:  equipment  ?? "",
+          },
+        },
+      }),
+    },
+    include: { trainer: true, client: true },
+  });
+
+  return NextResponse.json(
+    {
+      success: true,
+      data: {
+        id:    user.id,
+        name:  user.name,
+        email: user.email,
+        role:  user.role,
+      },
+    },
+    { status: 201 }
+  );
 }

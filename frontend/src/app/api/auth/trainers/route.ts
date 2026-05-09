@@ -1,8 +1,21 @@
-import { NextRequest } from "next/server";
-import { proxyToBackend } from "@/lib/backend-proxy";
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
-  return proxyToBackend(req, "auth/trainers", "GET", undefined, false);
+export async function GET() {
+  const trainers = await prisma.trainer.findMany({
+    include: {
+      user: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: { user: { name: "asc" } },
+  });
+
+  const data = trainers.map((t) => ({
+    id:    t.id,
+    name:  t.user.name,
+    email: t.user.email,
+  }));
+
+  return NextResponse.json({ success: true, data });
 }
