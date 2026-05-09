@@ -38,7 +38,8 @@ export const authOptions: NextAuthOptions = {
             role:      user.role as Role,
             profileId,
           };
-        } catch {
+        } catch (err) {
+          console.error("[auth] authorize error:", err);
           return null;
         }
       },
