@@ -39,11 +39,20 @@ export async function proxyToBackend(
     }
   }
 
-  const res = await fetch(`${BACKEND}/api/${path}`, {
-    method,
-    headers,
-    body: requestBody !== undefined ? JSON.stringify(requestBody) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BACKEND}/api/${path}`, {
+      method,
+      headers,
+      body: requestBody !== undefined ? JSON.stringify(requestBody) : undefined,
+    });
+  } catch {
+    // Network error — backend unreachable (ECONNREFUSED, timeout, DNS, etc.)
+    return NextResponse.json(
+      { success: false, error: "El servidor no está disponible. Intenta en unos segundos." },
+      { status: 503 }
+    );
+  }
 
   const text = await res.text();
   let data: unknown;
