@@ -59,10 +59,11 @@ export const authOptions: NextAuthOptions = {
         return token;
       }
 
-      // Token still valid
-      if (Date.now() < token.accessTokenExpires) return token;
+      // Token still valid, OR token from before refresh logic existed (no expiry field)
+      if (!token.accessTokenExpires || Date.now() < token.accessTokenExpires) return token;
 
-      // Access token expired — attempt silent refresh
+      // Access token expired — attempt silent refresh (only if we have a refresh token)
+      if (!token.refreshToken) return token;
       try {
         const res = await fetch(`${BACKEND}/api/auth/refresh`, {
           method: "POST",
