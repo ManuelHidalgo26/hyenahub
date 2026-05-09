@@ -1,11 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { proxyToBackend } from "@/lib/backend-proxy";
 
 export const dynamic = "force-dynamic";
 
-const BACKEND = process.env.BACKEND_URL ?? "http://localhost:4000";
-
-export async function GET() {
-  const res = await fetch(`${BACKEND}/api/auth/trainers`);
-  const data = await res.json();
-  return NextResponse.json(data, { status: res.status });
+export async function GET(req: NextRequest) {
+  return proxyToBackend(req, "auth/trainers", "GET", undefined, false);
 }

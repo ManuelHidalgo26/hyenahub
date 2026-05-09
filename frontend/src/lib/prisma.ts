@@ -21,13 +21,6 @@ function buildDatasourceUrl(): string {
   return url;
 }
 
-if (process.env.NODE_ENV === "production") {
-  const url = process.env.DATABASE_URL ?? "";
-  const usernameMatch = url.match(/\/\/([^:]+):/);
-  const hostMatch = url.match(/@([^/?]+)/);
-  console.log("[prisma] username:", usernameMatch?.[1] ?? "NOT SET");
-  console.log("[prisma] host:", hostMatch?.[1] ?? "NOT SET");
-}
 
 const prisma = global.prisma ?? new PrismaClient({ datasourceUrl: buildDatasourceUrl() });
 
