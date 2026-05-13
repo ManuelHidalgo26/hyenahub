@@ -60,11 +60,12 @@ function ExerciseRow({ ex, onToggle, onNote, readonly, videoUrl, videoTitle }: {
   videoUrl?: string;
   videoTitle?: string;
 }) {
-  const [busy,       setBusy]       = useState(false);
-  const [showNote,   setShowNote]   = useState(false);
-  const [noteVal,    setNoteVal]    = useState(ex.clientNote ?? "");
-  const [savingNote, setSavingNote] = useState(false);
-  const [showVideo,  setShowVideo]  = useState(false);
+  const [busy,          setBusy]          = useState(false);
+  const [showNote,      setShowNote]      = useState(false);
+  const [noteVal,       setNoteVal]       = useState(ex.clientNote ?? "");
+  const [savingNote,    setSavingNote]    = useState(false);
+  const [showVideo,     setShowVideo]     = useState(false);
+  const [confirmUnmark, setConfirmUnmark] = useState(false);
 
   // Keep noteVal in sync if parent updates ex.clientNote
   useEffect(() => { setNoteVal(ex.clientNote ?? ""); }, [ex.clientNote]);
@@ -72,6 +73,22 @@ function ExerciseRow({ ex, onToggle, onNote, readonly, videoUrl, videoTitle }: {
   async function handleToggle(e: React.MouseEvent) {
     if (readonly || !onToggle) return;
     e.stopPropagation();
+    // Si ya está completado, pedir confirmación antes de desmarcar
+    if (ex.completedThisWeek) {
+      setConfirmUnmark(true);
+      return;
+    }
+    setBusy(true);
+    try {
+      await onToggle(ex.id);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleConfirmUnmark() {
+    if (!onToggle) return;
+    setConfirmUnmark(false);
     setBusy(true);
     try {
       await onToggle(ex.id);
@@ -179,6 +196,25 @@ function ExerciseRow({ ex, onToggle, onNote, readonly, videoUrl, videoTitle }: {
           </button>
         )}
       </div>
+
+      {/* Confirmación para desmarcar */}
+      {confirmUnmark && (
+        <div className="px-5 py-3 bg-zinc-800/60 border-t border-white/[0.04] flex items-center gap-3" onClick={e => e.stopPropagation()}>
+          <span className="text-xs text-zinc-400 flex-1">¿Desmarcar este ejercicio?</span>
+          <button
+            onClick={handleConfirmUnmark}
+            className="text-xs bg-red-500/15 text-red-400 border border-red-500/20 px-3 py-1 rounded-lg hover:bg-red-500/25 transition-all"
+          >
+            Sí, desmarcar
+          </button>
+          <button
+            onClick={() => setConfirmUnmark(false)}
+            className="text-xs text-zinc-500 hover:text-zinc-300 px-2 py-1 transition-all"
+          >
+            Cancelar
+          </button>
+        </div>
+      )}
 
       {/* Saved note preview (click to edit) */}
       {ex.clientNote && !showNote && (
