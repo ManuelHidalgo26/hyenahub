@@ -413,20 +413,22 @@ export default function ClientDashboard() {
           days: r.days.map(d => ({ ...d, exercises: d.exercises.map(patchEx) })),
         }));
 
-        const current = next[0];
-        if (current) {
-          const allDone = getExercises(current).every(e => e.completedThisWeek);
+        const latestWeek = next[0]?.weekStart ?? "";
+        const currentExercises = next
+          .filter(r => r.weekStart === latestWeek)
+          .flatMap(r => getExercises(r));
+        const allDone = currentExercises.length > 0 && currentExercises.every(e => e.completedThisWeek);
 
-          if (allDone && !sessionFiredRef.current) {
-            sessionFiredRef.current = true;
-            addToast({
-              type: "success",
-              title: "¡Semana completada! 🏆",
-              message: "Completaste todos los ejercicios de esta semana. ¡Sos una bestia!",
-            });
-          }
-          if (!allDone) sessionFiredRef.current = false;
+        if (allDone && !sessionFiredRef.current) {
+          sessionFiredRef.current = true;
+          addToast({
+            type: "success",
+            title: "¡Semana completada! 🏆",
+            message: "Completaste todos los ejercicios de esta semana. ¡Sos una bestia!",
+          });
         }
+        if (!allDone) sessionFiredRef.current = false;
+
         return next;
       });
     } catch {
@@ -478,13 +480,18 @@ export default function ClientDashboard() {
   function getExercises(r: Routine) {
     return r.days && r.days.length > 0 ? r.days.flatMap(d => d.exercises) : r.exercises;
   }
-  const current  = routines[0] ?? null;
-  const allDone  = routines.reduce((s, r) => s + getExercises(r).filter(e => e.completedThisWeek).length, 0);
-  const allTotal = routines.reduce((s, r) => s + getExercises(r).length, 0);
-  const currentExs = current ? getExercises(current) : [];
+
+  const mostRecentWeekStart = routines[0]?.weekStart ?? "";
+  const currentRoutines    = routines.filter(r => r.weekStart === mostRecentWeekStart);
+  const historicalRoutines = routines.filter(r => r.weekStart !== mostRecentWeekStart);
+
+  const currentExs = currentRoutines.flatMap(r => getExercises(r));
   const done  = currentExs.filter(e => e.completedThisWeek).length;
   const total = currentExs.length;
   const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
+
+  const allDone  = currentExs.filter(e => e.completedThisWeek).length;
+  const allTotal = currentExs.length;
 
   if (loading) return <LoadingScreen />;
   if (fetchErr) return <ErrorBanner message={fetchErr} onRetry={load} />;
@@ -494,7 +501,7 @@ export default function ClientDashboard() {
 
       {/* Hero / motivation banner */}
       <div className="animate-slide-up">
-        {current ? (
+        {currentRoutines.length > 0 ? (
           <div className="relative overflow-hidden bg-gradient-to-br from-zinc-900 via-orange-950/20 to-zinc-900 border border-orange-500/10 rounded-3xl p-6 mb-8">
             <div className="absolute -top-12 -right-12 w-48 h-48 bg-orange-500/8 rounded-full blur-2xl pointer-events-none" />
             <div className="flex items-center gap-6 relative">
@@ -531,16 +538,25 @@ export default function ClientDashboard() {
         {routines.length === 0 && (
           <EmptyState message="Sin rutina asignada" sub="Tu entrenador todavía no asignó ejercicios. ¡Pronto llegará!" />
         )}
-        {routines.map((routine, idx) => (
+        {currentRoutines.map(routine => (
           <RoutineCard
             key={routine.id}
             routine={routine}
-            onToggle={idx === 0 ? handleToggle : undefined}
-            onNote={idx === 0 ? handleNote : undefined}
-            readonly={idx !== 0}
+            onToggle={handleToggle}
+            onNote={handleNote}
+            readonly={false}
             clientName={session?.user?.name}
             videoMap={videoMap}
-            onFeedbackSaved={idx === 0 ? handleFeedbackSaved : undefined}
+            onFeedbackSaved={handleFeedbackSaved}
+          />
+        ))}
+        {historicalRoutines.map(routine => (
+          <RoutineCard
+            key={routine.id}
+            routine={routine}
+            readonly={true}
+            clientName={session?.user?.name}
+            videoMap={videoMap}
           />
         ))}
       </div>
