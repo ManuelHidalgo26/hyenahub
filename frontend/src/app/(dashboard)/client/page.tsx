@@ -6,7 +6,7 @@ import api from "@/lib/api";
 import { useNotifications } from "@/components/NotificationProvider";
 import { ErrorBanner } from "@/components/ErrorBanner";
 
-/* ─── Types ─────────────────────────────────────────────────────────────────── */
+/* ─── Types ────────────────────────────────────────────────────────────────────────────── */
 interface Exercise {
   id: string; name: string; sets: number; reps: number;
   weight: number | null; notes: string | null; clientNote: string | null;
@@ -21,6 +21,7 @@ interface Routine {
   exercises: Exercise[]; days: RoutineDay[];
   client?: { trainerId: string };
   feedback?: WeeklyFeedback | null;
+  hidden: boolean;
 }
 interface TrainerVideo {
   id: string; title: string; videoUrl: string; exercise: string | null;
@@ -51,7 +52,7 @@ function ProgressRing({ pct }: { pct: number }) {
   );
 }
 
-/* ─── Exercise Row ───────────────────────────────────────────────────────────── */
+/* ─── Exercise Row ──────────────────────────────────────────────────────────────────────── */
 function ExerciseRow({ ex, onToggle, onNote, readonly, videoUrl, videoTitle }: {
   ex: Exercise;
   onToggle?: (id: string) => Promise<void>;
@@ -67,13 +68,11 @@ function ExerciseRow({ ex, onToggle, onNote, readonly, videoUrl, videoTitle }: {
   const [showVideo,     setShowVideo]     = useState(false);
   const [confirmUnmark, setConfirmUnmark] = useState(false);
 
-  // Keep noteVal in sync if parent updates ex.clientNote
   useEffect(() => { setNoteVal(ex.clientNote ?? ""); }, [ex.clientNote]);
 
   async function handleToggle(e: React.MouseEvent) {
     if (readonly || !onToggle) return;
     e.stopPropagation();
-    // Si ya está completado, pedir confirmación antes de desmarcar
     if (ex.completedThisWeek) {
       setConfirmUnmark(true);
       return;
@@ -112,13 +111,11 @@ function ExerciseRow({ ex, onToggle, onNote, readonly, videoUrl, videoTitle }: {
 
   return (
     <div className={`${ex.completedThisWeek ? "bg-emerald-500/5" : ""}`}>
-      {/* Main row */}
       <div
         onClick={!readonly ? handleToggle : undefined}
         className={`group flex items-center gap-3 px-5 py-3.5 transition-all duration-200
           ${readonly ? "cursor-default" : "cursor-pointer select-none hover:bg-white/[0.02]"}`}
       >
-        {/* Checkbox */}
         {!readonly ? (
           <div
             title={ex.completedThisWeek ? "Realizado esta semana ✓" : "Marcar como realizado esta semana"}
@@ -145,13 +142,11 @@ function ExerciseRow({ ex, onToggle, onNote, readonly, videoUrl, videoTitle }: {
           <div className={`w-2 h-2 rounded-full shrink-0 ${ex.completedThisWeek ? "bg-emerald-400" : "bg-zinc-700"}`} />
         )}
 
-        {/* Name */}
         <span className={`flex-1 text-sm font-medium transition-all duration-200
           ${ex.completedThisWeek ? "text-zinc-600 line-through decoration-zinc-700" : "text-zinc-200"}`}>
           {ex.name}
         </span>
 
-        {/* Sets × reps */}
         <div className="text-right shrink-0">
           <span className={`text-xs tabular-nums font-semibold ${ex.completedThisWeek ? "text-zinc-700" : "text-zinc-400"}`}>
             {ex.sets}×{ex.reps}
@@ -165,7 +160,6 @@ function ExerciseRow({ ex, onToggle, onNote, readonly, videoUrl, videoTitle }: {
           <span className="text-xs text-emerald-500 font-bold shrink-0">✓</span>
         )}
 
-        {/* Note icon button */}
         {!readonly && (
           <button
             onClick={e => { e.stopPropagation(); setShowNote(v => !v); }}
@@ -183,7 +177,6 @@ function ExerciseRow({ ex, onToggle, onNote, readonly, videoUrl, videoTitle }: {
           </button>
         )}
 
-        {/* Video button — visible when trainer has a related video */}
         {videoUrl && (
           <button
             onClick={e => { e.stopPropagation(); setShowVideo(true); }}
@@ -197,7 +190,6 @@ function ExerciseRow({ ex, onToggle, onNote, readonly, videoUrl, videoTitle }: {
         )}
       </div>
 
-      {/* Confirmación para desmarcar */}
       {confirmUnmark && (
         <div className="px-5 py-3 bg-zinc-800/60 border-t border-white/[0.04] flex items-center gap-3" onClick={e => e.stopPropagation()}>
           <span className="text-xs text-zinc-400 flex-1">¿Desmarcar este ejercicio?</span>
@@ -216,7 +208,6 @@ function ExerciseRow({ ex, onToggle, onNote, readonly, videoUrl, videoTitle }: {
         </div>
       )}
 
-      {/* Saved note preview (click to edit) */}
       {ex.clientNote && !showNote && (
         <div
           className={`px-5 pb-3 -mt-1 ${!readonly ? "cursor-pointer" : ""}`}
@@ -228,7 +219,6 @@ function ExerciseRow({ ex, onToggle, onNote, readonly, videoUrl, videoTitle }: {
         </div>
       )}
 
-      {/* Inline note editor */}
       {showNote && !readonly && (
         <div className="px-5 pb-4 -mt-1" onClick={e => e.stopPropagation()}>
           <textarea
@@ -258,7 +248,6 @@ function ExerciseRow({ ex, onToggle, onNote, readonly, videoUrl, videoTitle }: {
         </div>
       )}
 
-      {/* Video modal */}
       {showVideo && videoUrl && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => setShowVideo(false)}>
@@ -296,8 +285,8 @@ function VideoPlayer({ url }: { url: string }) {
   return <video src={url} controls className="w-full aspect-video rounded-xl bg-zinc-950" />;
 }
 
-/* ─── Routine Card ────────────────────────────────────────────────────────────── */
-function RoutineCard({ routine, onToggle, onNote, readonly, clientName, videoMap, onFeedbackSaved }: {
+/* ─── Routine Card ───────────────────────────────────────────────────────────────────────────── */
+function RoutineCard({ routine, onToggle, onNote, readonly, clientName, videoMap, onFeedbackSaved, onToggleVisibility }: {
   routine: Routine;
   onToggle?: (id: string) => Promise<void>;
   onNote?: (id: string, note: string) => Promise<void>;
@@ -305,6 +294,7 @@ function RoutineCard({ routine, onToggle, onNote, readonly, clientName, videoMap
   clientName?: string;
   videoMap?: Record<string, TrainerVideo>;
   onFeedbackSaved?: (routineId: string, fb: WeeklyFeedback) => void;
+  onToggleVisibility?: (id: string) => Promise<void>;
 }) {
   const hasDays = routine.days && routine.days.length > 0;
   const allExs  = hasDays ? routine.days.flatMap(d => d.exercises) : routine.exercises;
@@ -319,13 +309,11 @@ function RoutineCard({ routine, onToggle, onNote, readonly, clientName, videoMap
 
   return (
     <div className="bg-zinc-900 border border-white/[0.06] rounded-2xl overflow-hidden">
-      {/* Progress line */}
       <div className="h-0.5 bg-zinc-800">
         <div className="h-full transition-all duration-700"
           style={{ width: `${p}%`, background: p === 100 ? "linear-gradient(90deg,#10b981,#34d399)" : "linear-gradient(90deg,#f97316,#fbbf24)" }} />
       </div>
 
-      {/* Header */}
       <div className="px-5 py-4 border-b border-white/[0.04] flex items-center justify-between gap-2">
         <div>
           <span className="text-xs text-zinc-500 font-medium">Actualizado el {formatDate(routine.createdAt)}</span>
@@ -338,7 +326,24 @@ function RoutineCard({ routine, onToggle, onNote, readonly, clientName, videoMap
             </p>
             <p className="text-xs text-zinc-600">{p}%</p>
           </div>
-          {/* Download PDF button */}
+          {onToggleVisibility && (
+            <button
+              onClick={e => { e.stopPropagation(); onToggleVisibility(routine.id); }}
+              title={routine.hidden ? "Restaurar rutina" : "Archivar rutina"}
+              className="p-2 rounded-xl bg-zinc-800 text-zinc-600 hover:text-amber-400 hover:bg-amber-500/10 transition-all border border-white/[0.04]"
+            >
+              {routine.hidden ? (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                </svg>
+              )}
+            </button>
+          )}
           <button
             onClick={async () => { const { downloadRoutinePDF } = await import("@/lib/pdf"); downloadRoutinePDF(routine, clientName); }}
             title="Descargar como PDF"
@@ -352,7 +357,6 @@ function RoutineCard({ routine, onToggle, onNote, readonly, clientName, videoMap
         </div>
       </div>
 
-      {/* Exercises — grouped by day or flat */}
       {hasDays ? (
         <div>
           {routine.days.map(day => (
@@ -390,7 +394,6 @@ function RoutineCard({ routine, onToggle, onNote, readonly, clientName, videoMap
         </div>
       )}
 
-      {/* Weekly rating — shown on current (non-readonly) routine */}
       {!readonly && onFeedbackSaved && (
         <WeeklyRating
           routineId={routine.id}
@@ -402,7 +405,7 @@ function RoutineCard({ routine, onToggle, onNote, readonly, clientName, videoMap
   );
 }
 
-/* ─── Page ──────────────────────────────────────────────────────────────────── */
+/* ─── Page ────────────────────────────────────────────────────────────────────────────── */
 export default function ClientDashboard() {
   const { data: session } = useSession();
   const { addToast } = useNotifications();
@@ -480,6 +483,16 @@ export default function ClientDashboard() {
     setRoutines(prev => prev.map(r => r.id === routineId ? { ...r, feedback: fb } : r));
   }
 
+  async function handleToggleVisibility(routineId: string) {
+    try {
+      const res = await api.patch(`/routines/${routineId}/visibility`);
+      const { hidden }: { hidden: boolean } = res.data.data;
+      setRoutines(prev => prev.map(r => r.id === routineId ? { ...r, hidden } : r));
+    } catch {
+      addToast({ type: "warning", title: "Error", message: "No se pudo actualizar la visibilidad." });
+    }
+  }
+
   async function handleNote(exerciseId: string, note: string) {
     try {
       const res = await api.patch(`/routines/exercises/${exerciseId}/note`, { note });
@@ -517,9 +530,11 @@ export default function ClientDashboard() {
     return r.days && r.days.length > 0 ? r.days.flatMap(d => d.exercises) : r.exercises;
   }
 
-  const mostRecentWeekStart = routines[0]?.weekStart ?? "";
-  const currentRoutines    = routines.filter(r => r.weekStart === mostRecentWeekStart);
-  const historicalRoutines = routines.filter(r => r.weekStart !== mostRecentWeekStart);
+  const visibleRoutines    = routines.filter(r => !r.hidden);
+  const archivedRoutines   = routines.filter(r => r.hidden);
+  const mostRecentWeekStart = visibleRoutines[0]?.weekStart ?? "";
+  const currentRoutines    = visibleRoutines.filter(r => r.weekStart === mostRecentWeekStart);
+  const historicalRoutines = visibleRoutines.filter(r => r.weekStart !== mostRecentWeekStart);
 
   const currentExs = currentRoutines.flatMap(r => getExercises(r));
   const done  = currentExs.filter(e => e.completedThisWeek).length;
@@ -535,7 +550,6 @@ export default function ClientDashboard() {
   return (
     <div className="min-h-full p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto">
 
-      {/* Hero / motivation banner */}
       <div className="animate-slide-up">
         {currentRoutines.length > 0 ? (
           <div className="relative overflow-hidden bg-gradient-to-br from-zinc-900 via-orange-950/20 to-zinc-900 border border-orange-500/10 rounded-3xl p-6 mb-8">
@@ -569,7 +583,6 @@ export default function ClientDashboard() {
         )}
       </div>
 
-      {/* Rutinas — todas apiladas */}
       <div className="animate-slide-up-sm space-y-4">
         {routines.length === 0 && (
           <EmptyState message="Sin rutina asignada" sub="Tu entrenador todavía no asignó ejercicios. ¡Pronto llegará!" />
@@ -584,6 +597,7 @@ export default function ClientDashboard() {
             clientName={session?.user?.name}
             videoMap={videoMap}
             onFeedbackSaved={handleFeedbackSaved}
+            onToggleVisibility={handleToggleVisibility}
           />
         ))}
         {historicalRoutines.map(routine => (
@@ -593,15 +607,38 @@ export default function ClientDashboard() {
             readonly={true}
             clientName={session?.user?.name}
             videoMap={videoMap}
+            onToggleVisibility={handleToggleVisibility}
           />
         ))}
+        {archivedRoutines.length > 0 && (
+          <details className="group">
+            <summary className="text-xs text-zinc-600 hover:text-zinc-400 cursor-pointer select-none list-none flex items-center gap-2 py-1">
+              <svg className="w-3 h-3 transition-transform group-open:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+              {archivedRoutines.length} rutina{archivedRoutines.length > 1 ? "s" : ""} archivada{archivedRoutines.length > 1 ? "s" : ""}
+            </summary>
+            <div className="mt-2 space-y-3 opacity-60">
+              {archivedRoutines.map(routine => (
+                <RoutineCard
+                  key={routine.id}
+                  routine={routine}
+                  readonly={true}
+                  clientName={session?.user?.name}
+                  videoMap={videoMap}
+                  onToggleVisibility={handleToggleVisibility}
+                />
+              ))}
+            </div>
+          </details>
+        )}
       </div>
 
     </div>
   );
 }
 
-/* ─── Weekly Rating ──────────────────────────────────────────────────────────── */
+/* ─── Weekly Rating ──────────────────────────────────────────────────────────────────────── */
 function WeeklyRating({ routineId, initial, onSaved }: {
   routineId: string;
   initial?: WeeklyFeedback | null;
@@ -673,7 +710,6 @@ function WeeklyRating({ routineId, initial, onSaved }: {
     <div className="px-5 py-4 border-t border-white/[0.04] bg-zinc-950/40 space-y-3" onClick={e => e.stopPropagation()}>
       <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">¿Cómo fue tu semana?</p>
 
-      {/* Stars */}
       <div className="flex items-center gap-1.5">
         {stars.map(s => (
           <button key={s} type="button" onClick={() => setRating(s)}
@@ -689,7 +725,6 @@ function WeeklyRating({ routineId, initial, onSaved }: {
         )}
       </div>
 
-      {/* Comment */}
       <textarea
         value={comment}
         onChange={e => setComment(e.target.value)}
@@ -715,7 +750,7 @@ function WeeklyRating({ routineId, initial, onSaved }: {
   );
 }
 
-/* ─── Sub-components ─────────────────────────────────────────────────────────── */
+/* ─── Sub-components ───────────────────────────────────────────────────────────────────────── */
 function EmptyState({ message, sub }: { message: string; sub?: string }) {
   return (
     <div className="border border-dashed border-white/10 rounded-2xl p-12 text-center animate-fade-in">
@@ -737,7 +772,6 @@ function EmptyState({ message, sub }: { message: string; sub?: string }) {
 function LoadingScreen() {
   return (
     <div className="min-h-full p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto animate-pulse">
-      {/* Header skeleton */}
       <div className="rounded-2xl bg-zinc-900 border border-white/[0.06] p-5 mb-6">
         <div className="flex items-center gap-4">
           <div className="w-28 h-28 rounded-full bg-zinc-800 shrink-0" />
@@ -748,12 +782,10 @@ function LoadingScreen() {
           </div>
         </div>
       </div>
-      {/* Tabs skeleton */}
       <div className="flex gap-2 mb-6">
         <div className="h-9 w-28 bg-zinc-800 rounded-lg" />
         <div className="h-9 w-28 bg-zinc-800 rounded-lg" />
       </div>
-      {/* Card skeleton */}
       <div className="rounded-2xl bg-zinc-900 border border-white/[0.06] p-5 space-y-4">
         <div className="h-4 bg-zinc-800 rounded-full w-1/4" />
         {[1, 2, 3].map(i => (
