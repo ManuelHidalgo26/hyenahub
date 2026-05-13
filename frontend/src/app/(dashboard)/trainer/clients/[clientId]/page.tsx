@@ -22,6 +22,7 @@ interface Routine {
   id: string; weekStart: string; durationWeeks: number; notes: string | null;
   exercises: Exercise[]; days: RoutineDay[];
   feedback?: WeeklyFeedback | null;
+  hidden: boolean;
 }
 interface MealForm { name: string; time: string; foods: string; calories: string; protein: string; carbs: string; fat: string; notes: string; }
 interface Diet {
@@ -129,6 +130,10 @@ export default function ClientDetailPage() {
   // Password reset
   const [resetting,  setResetting]  = useState(false);
   const [tempPass,   setTempPass]   = useState<string | null>(null);
+
+  // Maintenance
+  const [selectedWeek, setSelectedWeek] = useState("");
+  const [resettingWeek, setResettingWeek] = useState(false);
 
   async function resetPassword() {
     if (!confirm(`¿Resetear la contraseña de ${client?.user.name}? Se generará una contraseña temporal.`)) return;
@@ -502,6 +507,42 @@ export default function ClientDetailPage() {
     if (!confirm("¿Eliminar esta rutina?")) return;
     await api.delete(`/routines/${id}`);
     setClient(p => p ? { ...p, routines: p.routines.filter(r => r.id !== id) } : p);
+  }
+
+  async function toggleRoutineVisibility(id: string) {
+    const res = await api.patch(`/routines/${id}/visibility`);
+    const { hidden }: { hidden: boolean } = res.data.data;
+    setClient(p => p ? { ...p, routines: p.routines.map(r => r.id === id ? { ...r, hidden } : r) } : p);
+  }
+
+  async function handleResetWeek() {
+    if (!selectedWeek) return;
+    const label = new Date(selectedWeek).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
+    if (!confirm(`¿Reiniciar el progreso de la semana del ${label}? El cliente podrá volver a marcar los ejercicios.`)) return;
+    setResettingWeek(true);
+    try {
+      await api.delete(`/trainer/clients/${clientId}/logs?weekOf=${selectedWeek}`);
+      setClient(p => {
+        if (!p) return p;
+        return {
+          ...p,
+          routines: p.routines.map(r =>
+            new Date(r.weekStart).toISOString().slice(0, 10) === selectedWeek
+              ? {
+                  ...r,
+                  exercises: r.exercises.map(ex => ({ ...ex, completed: false })),
+                  days: r.days.map(d => ({ ...d, exercises: d.exercises.map(ex => ({ ...ex, completed: false })) })),
+                }
+              : r
+          ),
+        };
+      });
+      setSelectedWeek("");
+    } catch {
+      alert("No se pudo reiniciar el progreso. Intentá de nuevo.");
+    } finally {
+      setResettingWeek(false);
+    }
   }
 
   if (loading) return <LoadingScreen />;
@@ -965,6 +1006,11 @@ export default function ClientDetailPage() {
                           Más reciente
                         </span>
                       )}
+                      {routine.hidden && (
+                        <span className="text-xs bg-zinc-800 text-zinc-500 border border-white/[0.06] font-medium px-2 py-0.5 rounded-full">
+                          Oculta
+                        </span>
+                      )}
                       <span className="text-xs bg-zinc-800 text-zinc-500 border border-white/[0.06] px-2 py-0.5 rounded-full">
                         {(routine.durationWeeks ?? 0) === 0 ? "♾ Sin vencimiento" : `${routine.durationWeeks} sem.`}
                       </span>
@@ -990,6 +1036,11 @@ export default function ClientDetailPage() {
                     <button onClick={() => startEditRoutine(routine)}
                       className="text-zinc-700 hover:text-orange-400 transition-colors text-xs px-1">
                       Editar
+                    </button>
+                    <button onClick={() => toggleRoutineVisibility(routine.id)}
+                      title={routine.hidden ? "Mostrar al cliente" : "Ocultar al cliente"}
+                      className={`transition-colors text-xs px-1 ${routine.hidden ? "text-amber-500/70 hover:text-amber-400" : "text-zinc-700 hover:text-amber-400"}`}>
+                      {routine.hidden ? "Mostrar" : "Ocultar"}
                     </button>
                     <button onClick={() => deleteRoutine(routine.id)}
                       className="text-zinc-700 hover:text-red-400 transition-colors text-xs px-1">
@@ -1066,6 +1117,39 @@ export default function ClientDetailPage() {
           })}
         </div>
       ))}
+
+      {/* ── MAINTENANCE SECTION ──────────────────────────────────────────── */}
+      {activeTab === "routines" && client.routines.length > 0 && (
+        <div className="mt-6 border border-dashed border-white/10 rounded-2xl p-4">
+          <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">Mantenimiento del progreso</p>
+          <div className="flex flex-wrap gap-2 items-center">
+            <select
+              value={selectedWeek}
+              onChange={e => setSelectedWeek(e.target.value)}
+              className="text-xs bg-zinc-800 text-zinc-300 border border-white/10 rounded-lg px-2 py-1.5 focus:outline-none focus:border-orange-500/30"
+            >
+              <option value="">Seleccionar semana…</option>
+              {[...new Map(client.routines.map(r => [r.weekStart.slice(0, 10), r])).values()]
+                .map(r => (
+                  <option key={r.weekStart} value={r.weekStart.slice(0, 10)}>
+                    {formatWeek(r.weekStart)}
+                  </option>
+                ))
+              }
+            </select>
+            <button
+              onClick={handleResetWeek}
+              disabled={!selectedWeek || resettingWeek}
+              className="text-xs text-red-400 border border-red-500/20 bg-red-500/10 px-3 py-1.5 rounded-lg hover:bg-red-500/20 transition-all disabled:opacity-40"
+            >
+              {resettingWeek ? "Reiniciando..." : "Reiniciar progreso de esa semana"}
+            </button>
+          </div>
+          <p className="text-xs text-zinc-700 mt-2 leading-relaxed">
+            Borra los ejercicios marcados en la semana seleccionada. La rutina y los demás registros quedan intactos.
+          </p>
+        </div>
+      )}
 
       {/* ── DIET TAB ────────────────────────────────────────────────────── */}
       {activeTab === "diet" && (

@@ -21,6 +21,7 @@ interface Routine {
   exercises: Exercise[]; days: RoutineDay[];
   client?: { trainerId: string };
   feedback?: WeeklyFeedback | null;
+  hidden: boolean;
 }
 interface TrainerVideo {
   id: string; title: string; videoUrl: string; exercise: string | null;
@@ -297,7 +298,7 @@ function VideoPlayer({ url }: { url: string }) {
 }
 
 /* ─── Routine Card ────────────────────────────────────────────────────────────── */
-function RoutineCard({ routine, onToggle, onNote, readonly, clientName, videoMap, onFeedbackSaved }: {
+function RoutineCard({ routine, onToggle, onNote, readonly, clientName, videoMap, onFeedbackSaved, onToggleVisibility }: {
   routine: Routine;
   onToggle?: (id: string) => Promise<void>;
   onNote?: (id: string, note: string) => Promise<void>;
@@ -305,6 +306,7 @@ function RoutineCard({ routine, onToggle, onNote, readonly, clientName, videoMap
   clientName?: string;
   videoMap?: Record<string, TrainerVideo>;
   onFeedbackSaved?: (routineId: string, fb: WeeklyFeedback) => void;
+  onToggleVisibility?: (id: string) => Promise<void>;
 }) {
   const hasDays = routine.days && routine.days.length > 0;
   const allExs  = hasDays ? routine.days.flatMap(d => d.exercises) : routine.exercises;
@@ -338,6 +340,25 @@ function RoutineCard({ routine, onToggle, onNote, readonly, clientName, videoMap
             </p>
             <p className="text-xs text-zinc-600">{p}%</p>
           </div>
+          {/* Toggle visibility button */}
+          {onToggleVisibility && (
+            <button
+              onClick={e => { e.stopPropagation(); onToggleVisibility(routine.id); }}
+              title={routine.hidden ? "Restaurar rutina" : "Archivar rutina"}
+              className="p-2 rounded-xl bg-zinc-800 text-zinc-600 hover:text-amber-400 hover:bg-amber-500/10 transition-all border border-white/[0.04]"
+            >
+              {routine.hidden ? (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                </svg>
+              )}
+            </button>
+          )}
           {/* Download PDF button */}
           <button
             onClick={async () => { const { downloadRoutinePDF } = await import("@/lib/pdf"); downloadRoutinePDF(routine, clientName); }}
@@ -480,6 +501,16 @@ export default function ClientDashboard() {
     setRoutines(prev => prev.map(r => r.id === routineId ? { ...r, feedback: fb } : r));
   }
 
+  async function handleToggleVisibility(routineId: string) {
+    try {
+      const res = await api.patch(`/routines/${routineId}/visibility`);
+      const { hidden }: { hidden: boolean } = res.data.data;
+      setRoutines(prev => prev.map(r => r.id === routineId ? { ...r, hidden } : r));
+    } catch {
+      addToast({ type: "warning", title: "Error", message: "No se pudo actualizar la visibilidad." });
+    }
+  }
+
   async function handleNote(exerciseId: string, note: string) {
     try {
       const res = await api.patch(`/routines/exercises/${exerciseId}/note`, { note });
@@ -517,9 +548,11 @@ export default function ClientDashboard() {
     return r.days && r.days.length > 0 ? r.days.flatMap(d => d.exercises) : r.exercises;
   }
 
-  const mostRecentWeekStart = routines[0]?.weekStart ?? "";
-  const currentRoutines    = routines.filter(r => r.weekStart === mostRecentWeekStart);
-  const historicalRoutines = routines.filter(r => r.weekStart !== mostRecentWeekStart);
+  const visibleRoutines    = routines.filter(r => !r.hidden);
+  const archivedRoutines   = routines.filter(r => r.hidden);
+  const mostRecentWeekStart = visibleRoutines[0]?.weekStart ?? "";
+  const currentRoutines    = visibleRoutines.filter(r => r.weekStart === mostRecentWeekStart);
+  const historicalRoutines = visibleRoutines.filter(r => r.weekStart !== mostRecentWeekStart);
 
   const currentExs = currentRoutines.flatMap(r => getExercises(r));
   const done  = currentExs.filter(e => e.completedThisWeek).length;
@@ -584,6 +617,7 @@ export default function ClientDashboard() {
             clientName={session?.user?.name}
             videoMap={videoMap}
             onFeedbackSaved={handleFeedbackSaved}
+            onToggleVisibility={handleToggleVisibility}
           />
         ))}
         {historicalRoutines.map(routine => (
@@ -593,8 +627,31 @@ export default function ClientDashboard() {
             readonly={true}
             clientName={session?.user?.name}
             videoMap={videoMap}
+            onToggleVisibility={handleToggleVisibility}
           />
         ))}
+        {archivedRoutines.length > 0 && (
+          <details className="group">
+            <summary className="text-xs text-zinc-600 hover:text-zinc-400 cursor-pointer select-none list-none flex items-center gap-2 py-1">
+              <svg className="w-3 h-3 transition-transform group-open:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+              {archivedRoutines.length} rutina{archivedRoutines.length > 1 ? "s" : ""} archivada{archivedRoutines.length > 1 ? "s" : ""}
+            </summary>
+            <div className="mt-2 space-y-3 opacity-60">
+              {archivedRoutines.map(routine => (
+                <RoutineCard
+                  key={routine.id}
+                  routine={routine}
+                  readonly={true}
+                  clientName={session?.user?.name}
+                  videoMap={videoMap}
+                  onToggleVisibility={handleToggleVisibility}
+                />
+              ))}
+            </div>
+          </details>
+        )}
       </div>
 
     </div>

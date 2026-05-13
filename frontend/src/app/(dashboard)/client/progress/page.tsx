@@ -92,9 +92,10 @@ function BarChart({ data }: { data: WeekStat[] }) {
 }
 
 export default function ProgressPage() {
-  const [data,     setData]     = useState<WeekStat[]>([]);
-  const [loading,  setLoading]  = useState(true);
-  const [fetchErr, setFetchErr] = useState("");
+  const [data,       setData]       = useState<WeekStat[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [fetchErr,   setFetchErr]   = useState("");
+  const [resetting,  setResetting]  = useState<string | null>(null);
 
   function load() {
     setLoading(true); setFetchErr("");
@@ -105,6 +106,20 @@ export default function ProgressPage() {
   }
 
   useEffect(() => { load(); }, []);
+
+  async function handleResetWeek(weekStart: string) {
+    const label = new Date(weekStart).toLocaleDateString("es-AR", { day: "numeric", month: "long" });
+    if (!confirm(`¿Reiniciar el progreso de la semana del ${label}? Podrás volver a marcar los ejercicios desde cero.`)) return;
+    setResetting(weekStart);
+    try {
+      await api.delete(`/routines/my/logs?weekOf=${weekStart}`);
+      setData(prev => prev.map(w => w.weekStart === weekStart ? { ...w, done: 0, pct: 0 } : w));
+    } catch {
+      alert("No se pudo reiniciar el progreso. Intentá de nuevo.");
+    } finally {
+      setResetting(null);
+    }
+  }
 
   if (fetchErr) return <ErrorBanner message={fetchErr} onRetry={load} />;
 
@@ -205,6 +220,16 @@ export default function ProgressPage() {
                       {w.pct}%
                     </span>
                     {w.pct === 100 && <span className="text-xs">✓</span>}
+                    {w.done > 0 && (
+                      <button
+                        onClick={() => handleResetWeek(w.weekStart)}
+                        disabled={resetting === w.weekStart}
+                        title="Reiniciar progreso de esta semana"
+                        className="text-xs text-red-500/50 hover:text-red-400 transition-colors disabled:opacity-40 shrink-0"
+                      >
+                        {resetting === w.weekStart ? "..." : "↺"}
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

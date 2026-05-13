@@ -137,6 +137,7 @@ model Routine {
   durationWeeks Int      @default(0)
   createdAt     DateTime @default(now())
   notes         String?
+  hidden        Boolean  @default(false)
 
   client    Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
   days      RoutineDay[]
