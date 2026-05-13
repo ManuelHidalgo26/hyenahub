@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import api from "@/lib/api";
 
-/* ─── Types ────────────────────────────────────────────────────────────────── */
+/* ─── Types ────────────────────────────────────────────────────────────────────────────── */
 interface ClientDetail {
   id: string; goal: string; experience: string; equipment: string;
   weight: number | null; age: number | null; notes: string | null;
@@ -22,6 +22,7 @@ interface Routine {
   id: string; weekStart: string; durationWeeks: number; notes: string | null;
   exercises: Exercise[]; days: RoutineDay[];
   feedback?: WeeklyFeedback | null;
+  hidden: boolean;
 }
 interface MealForm { name: string; time: string; foods: string; calories: string; protein: string; carbs: string; fat: string; notes: string; }
 interface Diet {
@@ -45,32 +46,25 @@ const EMPTY: ExForm = { name: "", sets: "3", reps: "10", weight: "", notes: "" }
 const EMPTY_MEAL: MealForm = { name: "", time: "", foods: "", calories: "", protein: "", carbs: "", fat: "", notes: "" };
 const MEAL_SUGGESTIONS = ["Desayuno", "Almuerzo", "Cena", "Colación", "Merienda", "Pre-entreno", "Post-entreno"];
 const EXERCISE_SUGGESTIONS = [
-  // Piernas
   "Sentadilla con barra", "Sentadilla goblet", "Sentadilla búlgara", "Prensa de piernas",
   "Extensión de cuádriceps", "Curl femoral", "Peso muerto rumano", "Hip thrust", "Glute bridge",
   "Estocada frontal", "Estocada lateral", "Estocada caminando", "Step-up", "Abducción de cadera",
-  // Espalda
   "Peso muerto convencional", "Peso muerto sumo", "Dominadas", "Jalón al pecho",
   "Remo con barra", "Remo con mancuerna", "Remo en polea baja", "Pull-over", "Face pull",
-  // Pecho
   "Press de banca plano", "Press de banca inclinado", "Press de banca declinado",
   "Aperturas con mancuernas", "Aperturas en polea", "Fondos en paralelas", "Flexiones",
-  // Hombros
   "Press militar", "Press Arnold", "Elevaciones laterales", "Elevaciones frontales",
   "Pájaros", "Encogimiento de hombros",
-  // Bíceps / Tríceps
   "Curl de bíceps con barra", "Curl de bíceps con mancuerna", "Curl martillo",
   "Curl concentrado", "Curl en polea", "Press francés", "Extensión de tríceps en polea",
   "Patada de tríceps", "Fondos tríceps en banco",
-  // Core / Abdomen
   "Plancha", "Plancha lateral", "Crunch", "Crunch en polea", "Elevación de piernas",
   "Rueda abdominal", "Bicicleta", "Mountain climber", "Russian twist",
-  // Cardio / Funcional
   "Burpee", "Salto a la caja", "Salto al cajón", "Kettlebell swing",
   "Remo en máquina", "Cinta de correr", "Bicicleta estática", "Elíptica",
 ];
 
-/* ─── Helpers ───────────────────────────────────────────────────────────────── */
+/* ─── Helpers ────────────────────────────────────────────────────────────────────────────── */
 function getMonday() {
   const d = new Date();
   const day = d.getDay();
@@ -96,7 +90,7 @@ function pct(routine: Routine) {
 const EXP: Record<string, string> = { beginner: "Principiante", intermediate: "Intermedio", advanced: "Avanzado" };
 const EQ:  Record<string, string> = { none: "Sin equipo", home: "Casa", gym: "Gym", full: "Completo" };
 
-/* ─── Page ─────────────────────────────────────────────────────────────────── */
+/* ─── Page ────────────────────────────────────────────────────────────────────────────── */
 export default function ClientDetailPage() {
   const { clientId } = useParams<{ clientId: string }>();
   const router = useRouter();
@@ -104,7 +98,6 @@ export default function ClientDetailPage() {
   const [loading,    setLoading]    = useState(true);
   const [activeTab,  setActiveTab]  = useState<"routines" | "diet">("routines");
 
-  // Routine form
   const [showForm,         setShowForm]         = useState(false);
   const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
   const [weekStart,        setWeekStart]        = useState(getMonday());
@@ -116,19 +109,19 @@ export default function ClientDetailPage() {
   const [submitting,       setSubmitting]       = useState(false);
   const [formError,        setFormError]        = useState("");
 
-  // Templates
   const [templates,     setTemplates]     = useState<RoutineTemplate[]>([]);
   const [loadTemplates, setLoadTemplates] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [savingTpl,     setSavingTpl]     = useState(false);
   const [tplName,       setTplName]       = useState("");
 
-  // Note modal
   const [noteModal,  setNoteModal]  = useState<{ exerciseName: string; note: string } | null>(null);
 
-  // Password reset
   const [resetting,  setResetting]  = useState(false);
   const [tempPass,   setTempPass]   = useState<string | null>(null);
+
+  const [selectedWeek, setSelectedWeek] = useState("");
+  const [resettingWeek, setResettingWeek] = useState(false);
 
   async function resetPassword() {
     if (!confirm(`¿Resetear la contraseña de ${client?.user.name}? Se generará una contraseña temporal.`)) return;
@@ -143,7 +136,6 @@ export default function ClientDetailPage() {
     }
   }
 
-  // Diet state
   const [diets,      setDiets]      = useState<Diet[]>([]);
   const [loadingDiets, setLoadingDiets] = useState(false);
   const [showDietForm, setShowDietForm] = useState(false);
@@ -157,7 +149,6 @@ export default function ClientDetailPage() {
   const [dietSubmitting, setDietSubmitting] = useState(false);
   const [dietError,  setDietError]  = useState("");
 
-  // Diet templates
   const [dietTemplates,     setDietTemplates]     = useState<DietTemplate[]>([]);
   const [loadDietTemplates, setLoadDietTemplates] = useState(false);
   const [showDietTemplates, setShowDietTemplates] = useState(false);
@@ -169,7 +160,6 @@ export default function ClientDetailPage() {
       .finally(() => setLoading(false));
   }, [clientId]);
 
-  // Load diets when diet tab is opened
   useEffect(() => {
     if (activeTab !== "diet" || !clientId) return;
     setLoadingDiets(true);
@@ -178,7 +168,6 @@ export default function ClientDetailPage() {
       .finally(() => setLoadingDiets(false));
   }, [activeTab, clientId]);
 
-  // Drag & drop state for exercise reordering
   const dragIdx = useRef<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
@@ -188,7 +177,6 @@ export default function ClientDetailPage() {
     setExercises(p => p.map((ex, j) => j === i ? { ...ex, [f]: v } : ex));
   }
 
-  // Day-mode helpers
   function addDay() {
     setDays(p => [...p, { name: `Día ${p.length + 1}`, exercises: [{ ...EMPTY }] }]);
   }
@@ -278,7 +266,6 @@ export default function ClientDetailPage() {
     setTemplates(p => p.filter(t => t.id !== id));
   }
 
-  // Diet helpers
   function addMeal()    { setMeals(p => [...p, { ...EMPTY_MEAL }]); }
   function removeMeal(i: number) { setMeals(p => p.filter((_, j) => j !== i)); }
   function updateMeal(i: number, f: keyof MealForm, v: string) {
@@ -504,13 +491,48 @@ export default function ClientDetailPage() {
     setClient(p => p ? { ...p, routines: p.routines.filter(r => r.id !== id) } : p);
   }
 
+  async function toggleRoutineVisibility(id: string) {
+    const res = await api.patch(`/routines/${id}/visibility`);
+    const { hidden }: { hidden: boolean } = res.data.data;
+    setClient(p => p ? { ...p, routines: p.routines.map(r => r.id === id ? { ...r, hidden } : r) } : p);
+  }
+
+  async function handleResetWeek() {
+    if (!selectedWeek) return;
+    const label = new Date(selectedWeek).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
+    if (!confirm(`¿Reiniciar el progreso de la semana del ${label}? El cliente podrá volver a marcar los ejercicios.`)) return;
+    setResettingWeek(true);
+    try {
+      await api.delete(`/trainer/clients/${clientId}/logs?weekOf=${selectedWeek}`);
+      setClient(p => {
+        if (!p) return p;
+        return {
+          ...p,
+          routines: p.routines.map(r =>
+            new Date(r.weekStart).toISOString().slice(0, 10) === selectedWeek
+              ? {
+                  ...r,
+                  exercises: r.exercises.map(ex => ({ ...ex, completed: false })),
+                  days: r.days.map(d => ({ ...d, exercises: d.exercises.map(ex => ({ ...ex, completed: false })) })),
+                }
+              : r
+          ),
+        };
+      });
+      setSelectedWeek("");
+    } catch {
+      alert("No se pudo reiniciar el progreso. Intentá de nuevo.");
+    } finally {
+      setResettingWeek(false);
+    }
+  }
+
   if (loading) return <LoadingScreen />;
   if (!client)  return null;
 
   return (
     <div className="min-h-full p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
 
-      {/* ── Note modal ─────────────────────────────────────────────────── */}
       {noteModal && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => setNoteModal(null)}>
@@ -530,7 +552,6 @@ export default function ClientDetailPage() {
         </div>
       )}
 
-      {/* ── Temp password modal ────────────────────────────────────────── */}
       {tempPass && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => setTempPass(null)}>
@@ -555,7 +576,6 @@ export default function ClientDetailPage() {
         </div>
       )}
 
-      {/* Back */}
       <button
         onClick={() => router.push("/trainer")}
         className="flex items-center gap-2 text-sm text-zinc-500 hover:text-white transition-colors mb-5 sm:mb-6 group"
@@ -566,9 +586,7 @@ export default function ClientDetailPage() {
         Volver al dashboard
       </button>
 
-      {/* Client profile card */}
       <div className="bg-zinc-900 border border-white/[0.06] rounded-2xl overflow-hidden mb-5 sm:mb-6 animate-slide-up">
-        {/* Gradient banner */}
         <div className="h-2 bg-gradient-to-r from-orange-500 via-amber-500 to-red-500" />
         <div className="p-4 sm:p-6">
           <div className="flex items-start gap-4">
@@ -605,7 +623,6 @@ export default function ClientDetailPage() {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-1 bg-zinc-900/50 border border-white/[0.05] rounded-xl p-1 w-fit mb-5">
         {(["routines", "diet"] as const).map(t => (
           <button key={t} onClick={() => { setActiveTab(t); cancelForm(); setShowDietForm(false); }}
@@ -617,7 +634,6 @@ export default function ClientDetailPage() {
         ))}
       </div>
 
-      {/* ── ROUTINES TAB ───────────────────────────────────────────────── */}
       {activeTab === "routines" && (
       <div className="flex items-center justify-between mb-4 sm:mb-5 gap-3">
         <h2 className="text-base font-bold text-white">
@@ -639,7 +655,6 @@ export default function ClientDetailPage() {
         </button>
       </div>)}
 
-      {/* Create routine form */}
       {showForm && (
         <form onSubmit={submit} className="bg-zinc-900 border border-orange-500/20 rounded-2xl p-4 sm:p-6 mb-5 sm:mb-6 space-y-5 animate-slide-up-sm">
           <div className="flex items-center justify-between gap-3">
@@ -656,7 +671,6 @@ export default function ClientDetailPage() {
             </button>
           </div>
 
-          {/* Template picker */}
           {showTemplates && (
             <div className="bg-zinc-800/60 border border-white/[0.06] rounded-xl p-3 space-y-2 animate-slide-up-sm">
               <div className="flex items-center justify-between mb-1">
@@ -707,7 +721,7 @@ export default function ClientDetailPage() {
           <div>
             <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Duración de la rutina</label>
             <div className="flex flex-wrap gap-2">
-              {([["0", "♾ Sin vencimiento"], ["1", "1 semana"], ["2", "2 semanas"], ["4", "4 semanas"], ["8", "8 semanas"], ["12", "12 semanas"]] as const).map(([val, label]) => (
+              {(([["0", "♾ Sin vencimiento"], ["1", "1 semana"], ["2", "2 semanas"], ["4", "4 semanas"], ["8", "8 semanas"], ["12", "12 semanas"]] as const)).map(([val, label]) => (
                 <button key={val} type="button" onClick={() => setDurationWeeks(val)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
                     durationWeeks === val
@@ -725,7 +739,6 @@ export default function ClientDetailPage() {
             </p>
           </div>
 
-          {/* Day / flat toggle */}
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -746,7 +759,6 @@ export default function ClientDetailPage() {
             </span>
           </div>
 
-          {/* Exercise rows — flat mode */}
           {!useDays && (
           <div>
             <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">
@@ -818,12 +830,10 @@ export default function ClientDetailPage() {
           </div>
           )}
 
-          {/* Exercise rows — day mode */}
           {useDays && (
           <div className="space-y-4">
             {days.map((day, di) => (
               <div key={di} className="border border-orange-500/20 rounded-xl overflow-hidden">
-                {/* Day header */}
                 <div className="flex items-center gap-2 px-3 py-2.5 bg-orange-500/8 border-b border-orange-500/15">
                   <span className="text-xs font-bold text-orange-400/70 shrink-0">Día {di + 1}</span>
                   <input
@@ -837,7 +847,6 @@ export default function ClientDetailPage() {
                       className="text-zinc-600 hover:text-red-400 transition-colors text-lg leading-none shrink-0">×</button>
                   )}
                 </div>
-                {/* Day exercises */}
                 <div className="p-3 space-y-2">
                   {day.exercises.map((ex, ei) => (
                     <div key={ei} className="grid grid-cols-12 gap-2 items-center bg-zinc-800/50 border border-white/5 rounded-xl p-3">
@@ -898,7 +907,6 @@ export default function ClientDetailPage() {
           </div>
           )}
 
-          {/* Save as template */}
           <div className="flex items-center gap-2 pt-1 border-t border-white/[0.04]">
             <input
               value={tplName}
@@ -933,7 +941,6 @@ export default function ClientDetailPage() {
         </form>
       )}
 
-      {/* Routine history — only in routines tab */}
       {activeTab === "routines" && (client.routines.length === 0 ? (
         <div className="border border-dashed border-white/10 rounded-2xl p-10 sm:p-12 text-center text-zinc-500 text-sm">
           Todavía no se crearon rutinas para este cliente.
@@ -947,13 +954,11 @@ export default function ClientDetailPage() {
             return (
               <div key={routine.id} className="bg-zinc-900 border border-white/[0.06] rounded-2xl overflow-hidden animate-slide-up"
                 style={{ animationDelay: `${idx * 60}ms` }}>
-                {/* Progress bar top */}
                 <div className="h-0.5 bg-zinc-800">
                   <div className="h-full transition-all duration-700"
                     style={{ width: `${p}%`, background: p === 100 ? "linear-gradient(90deg,#10b981,#34d399)" : "linear-gradient(90deg,#f97316,#fbbf24)" }} />
                 </div>
 
-                {/* Header */}
                 <div className="flex items-start sm:items-center justify-between px-4 sm:px-5 py-4 gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -963,6 +968,11 @@ export default function ClientDetailPage() {
                       {idx === 0 && (
                         <span className="text-xs bg-orange-500/15 text-orange-400 border border-orange-500/20 font-medium px-2 py-0.5 rounded-full">
                           Más reciente
+                        </span>
+                      )}
+                      {routine.hidden && (
+                        <span className="text-xs bg-zinc-800 text-zinc-500 border border-white/[0.06] font-medium px-2 py-0.5 rounded-full">
+                          Oculta
                         </span>
                       )}
                       <span className="text-xs bg-zinc-800 text-zinc-500 border border-white/[0.06] px-2 py-0.5 rounded-full">
@@ -991,6 +1001,11 @@ export default function ClientDetailPage() {
                       className="text-zinc-700 hover:text-orange-400 transition-colors text-xs px-1">
                       Editar
                     </button>
+                    <button onClick={() => toggleRoutineVisibility(routine.id)}
+                      title={routine.hidden ? "Mostrar al cliente" : "Ocultar al cliente"}
+                      className={`transition-colors text-xs px-1 ${routine.hidden ? "text-amber-500/70 hover:text-amber-400" : "text-zinc-700 hover:text-amber-400"}`}>
+                      {routine.hidden ? "Mostrar" : "Ocultar"}
+                    </button>
                     <button onClick={() => deleteRoutine(routine.id)}
                       className="text-zinc-700 hover:text-red-400 transition-colors text-xs px-1">
                       Eliminar
@@ -998,7 +1013,6 @@ export default function ClientDetailPage() {
                   </div>
                 </div>
 
-                {/* Exercises — grouped by day or flat */}
                 <div className="border-t border-white/[0.04]">
                   {routine.days && routine.days.length > 0 ? (
                     routine.days.map(day => (
@@ -1029,7 +1043,6 @@ export default function ClientDetailPage() {
                     </div>
                   )}
                 </div>
-                {/* Client notes summary */}
                 {exs.some(e => e.clientNote) && (
                   <div className="px-4 sm:px-5 py-3 border-t border-white/[0.04] bg-yellow-500/[0.03]">
                     <p className="text-xs text-zinc-600 font-semibold uppercase tracking-widest mb-2">Notas del cliente</p>
@@ -1044,7 +1057,6 @@ export default function ClientDetailPage() {
                   </div>
                 )}
 
-                {/* Weekly feedback from client */}
                 {routine.feedback && (
                   <div className="px-4 sm:px-5 py-3 border-t border-white/[0.04] flex items-center gap-3">
                     <div className="flex gap-0.5 shrink-0">
@@ -1067,10 +1079,40 @@ export default function ClientDetailPage() {
         </div>
       ))}
 
-      {/* ── DIET TAB ────────────────────────────────────────────────────── */}
+      {activeTab === "routines" && client.routines.length > 0 && (
+        <div className="mt-6 border border-dashed border-white/10 rounded-2xl p-4">
+          <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">Mantenimiento del progreso</p>
+          <div className="flex flex-wrap gap-2 items-center">
+            <select
+              value={selectedWeek}
+              onChange={e => setSelectedWeek(e.target.value)}
+              className="text-xs bg-zinc-800 text-zinc-300 border border-white/10 rounded-lg px-2 py-1.5 focus:outline-none focus:border-orange-500/30"
+            >
+              <option value="">Seleccionar semana…</option>
+              {[...new Map(client.routines.map(r => [r.weekStart.slice(0, 10), r])).values()]
+                .map(r => (
+                  <option key={r.weekStart} value={r.weekStart.slice(0, 10)}>
+                    {formatWeek(r.weekStart)}
+                  </option>
+                ))
+              }
+            </select>
+            <button
+              onClick={handleResetWeek}
+              disabled={!selectedWeek || resettingWeek}
+              className="text-xs text-red-400 border border-red-500/20 bg-red-500/10 px-3 py-1.5 rounded-lg hover:bg-red-500/20 transition-all disabled:opacity-40"
+            >
+              {resettingWeek ? "Reiniciando..." : "Reiniciar progreso de esa semana"}
+            </button>
+          </div>
+          <p className="text-xs text-zinc-700 mt-2 leading-relaxed">
+            Borra los ejercicios marcados en la semana seleccionada. La rutina y los demás registros quedan intactos.
+          </p>
+        </div>
+      )}
+
       {activeTab === "diet" && (
         <div>
-          {/* Diet toolbar */}
           <div className="flex items-center justify-between mb-4 sm:mb-5 gap-3">
             <h2 className="text-base font-bold text-white">
               Plan de dieta
@@ -1085,7 +1127,6 @@ export default function ClientDetailPage() {
             </button>
           </div>
 
-          {/* Diet form */}
           {showDietForm && (
             <form onSubmit={submitDiet} className="bg-zinc-900 border border-orange-500/20 rounded-2xl p-4 sm:p-6 mb-5 space-y-5 animate-slide-up-sm">
               <div className="flex items-center justify-between gap-3">
@@ -1101,7 +1142,6 @@ export default function ClientDetailPage() {
                 </button>
               </div>
 
-              {/* Diet template picker */}
               {showDietTemplates && (
                 <div className="bg-zinc-800/60 border border-white/[0.06] rounded-xl p-3 space-y-2 animate-slide-up-sm">
                   <div className="flex items-center justify-between mb-1">
@@ -1129,7 +1169,6 @@ export default function ClientDetailPage() {
                 </div>
               )}
 
-              {/* Name + description */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Nombre del plan *</label>
@@ -1143,7 +1182,6 @@ export default function ClientDetailPage() {
                 </div>
               </div>
 
-              {/* Daily macros */}
               <div>
                 <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">Objetivos diarios (opcional)</p>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -1162,14 +1200,12 @@ export default function ClientDetailPage() {
                 </div>
               </div>
 
-              {/* Meals */}
               <div>
                 <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">Comidas del día *</p>
                 <div className="space-y-3">
                   {meals.map((meal, i) => (
                     <div key={i} className="bg-zinc-800/50 border border-white/5 rounded-xl p-3 space-y-2">
                       <div className="flex items-center gap-2">
-                        {/* Meal name — quick suggestions */}
                         <div className="flex-1 relative">
                           <input value={meal.name} onChange={e => updateMeal(i, "name", e.target.value)} required
                             placeholder="Nombre de la comida *" className="input-dark !py-2 !text-xs" list={`meal-suggestions-${i}`} />
@@ -1231,7 +1267,6 @@ export default function ClientDetailPage() {
             </form>
           )}
 
-          {/* Diets list */}
           {loadingDiets ? (
             <div className="flex items-center justify-center py-12">
               <div className="w-6 h-6 border-2 border-zinc-800 border-t-orange-500 rounded-full animate-spin" />
@@ -1246,7 +1281,6 @@ export default function ClientDetailPage() {
               {diets.map((diet, idx) => (
                 <div key={diet.id} className="bg-zinc-900 border border-white/[0.06] rounded-2xl overflow-hidden animate-slide-up"
                   style={{ animationDelay: `${idx * 60}ms` }}>
-                  {/* Header */}
                   <div className="flex items-start justify-between px-4 sm:px-5 py-4 border-b border-white/[0.04] gap-3">
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
@@ -1254,7 +1288,6 @@ export default function ClientDetailPage() {
                         {idx === 0 && <span className="text-xs bg-orange-500/15 text-orange-400 border border-orange-500/20 px-2 py-0.5 rounded-full font-medium">Actual</span>}
                       </div>
                       {diet.description && <p className="text-xs text-zinc-500 mt-0.5">{diet.description}</p>}
-                      {/* Macros summary */}
                       <div className="flex gap-2 flex-wrap mt-2">
                         {diet.calories && <span className="text-xs text-orange-400 font-semibold">{diet.calories} kcal</span>}
                         {diet.protein  && <span className="text-xs text-zinc-500">P: {diet.protein}g</span>}
@@ -1277,7 +1310,6 @@ export default function ClientDetailPage() {
                       </button>
                     </div>
                   </div>
-                  {/* Meals summary */}
                   <div className="divide-y divide-white/[0.04]">
                     {diet.meals.map(meal => (
                       <div key={meal.id} className="px-4 sm:px-5 py-3 flex items-start gap-3">
