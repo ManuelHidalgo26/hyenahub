@@ -19,15 +19,22 @@ export async function GET() {
 
   const clientId = session!.user.profileId;
 
-  // La rutina más reciente define el total de ejercicios para el historial
-  const currentRoutine = await prisma.routine.findFirst({
+  // Obtener la semana más reciente y TODAS las rutinas de esa semana
+  const latestRoutine = await prisma.routine.findFirst({
     where: { clientId },
     orderBy: { weekStart: "desc" },
-    include: { exercises: { select: { id: true } } },
+    select: { weekStart: true },
   });
 
-  const total = currentRoutine?.exercises.length ?? 0;
-  const exerciseIds = (currentRoutine?.exercises ?? []).map(e => e.id);
+  const currentRoutines = latestRoutine
+    ? await prisma.routine.findMany({
+        where: { clientId, weekStart: latestRoutine.weekStart },
+        include: { exercises: { select: { id: true } } },
+      })
+    : [];
+
+  const exerciseIds = currentRoutines.flatMap(r => r.exercises.map(e => e.id));
+  const total = exerciseIds.length;
 
   // Calcular el inicio de las últimas 12 semanas
   const monday = getMondayOfCurrentWeek();
