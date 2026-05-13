@@ -10,7 +10,7 @@ import { ErrorBanner } from "@/components/ErrorBanner";
 interface Exercise {
   id: string; name: string; sets: number; reps: number;
   weight: number | null; notes: string | null; clientNote: string | null;
-  completed: boolean; order: number; dayId: string | null;
+  completedThisWeek: boolean; order: number; dayId: string | null;
 }
 interface RoutineDay { id: string; name: string; order: number; exercises: Exercise[]; }
 interface WeeklyFeedback {
@@ -94,7 +94,7 @@ function ExerciseRow({ ex, onToggle, onNote, readonly, videoUrl, videoTitle }: {
   }
 
   return (
-    <div className={`${ex.completed ? "bg-emerald-500/5" : ""}`}>
+    <div className={`${ex.completedThisWeek ? "bg-emerald-500/5" : ""}`}>
       {/* Main row */}
       <div
         onClick={!readonly ? handleToggle : undefined}
@@ -103,10 +103,12 @@ function ExerciseRow({ ex, onToggle, onNote, readonly, videoUrl, videoTitle }: {
       >
         {/* Checkbox */}
         {!readonly ? (
-          <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all duration-200
+          <div
+            title={ex.completedThisWeek ? "Realizado esta semana ✓" : "Marcar como realizado esta semana"}
+            className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all duration-200
             ${busy
               ? "border-orange-500/30 bg-orange-500/5"
-              : ex.completed
+              : ex.completedThisWeek
                 ? "bg-gradient-to-br from-orange-500 to-amber-500 border-transparent shadow-lg shadow-orange-500/30"
                 : "border-zinc-600 group-hover:border-orange-500/60"
             }`}
@@ -116,25 +118,25 @@ function ExerciseRow({ ex, onToggle, onNote, readonly, videoUrl, videoTitle }: {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-            ) : ex.completed ? (
+            ) : ex.completedThisWeek ? (
               <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             ) : null}
           </div>
         ) : (
-          <div className={`w-2 h-2 rounded-full shrink-0 ${ex.completed ? "bg-emerald-400" : "bg-zinc-700"}`} />
+          <div className={`w-2 h-2 rounded-full shrink-0 ${ex.completedThisWeek ? "bg-emerald-400" : "bg-zinc-700"}`} />
         )}
 
         {/* Name */}
         <span className={`flex-1 text-sm font-medium transition-all duration-200
-          ${ex.completed ? "text-zinc-600 line-through decoration-zinc-700" : "text-zinc-200"}`}>
+          ${ex.completedThisWeek ? "text-zinc-600 line-through decoration-zinc-700" : "text-zinc-200"}`}>
           {ex.name}
         </span>
 
         {/* Sets × reps */}
         <div className="text-right shrink-0">
-          <span className={`text-xs tabular-nums font-semibold ${ex.completed ? "text-zinc-700" : "text-zinc-400"}`}>
+          <span className={`text-xs tabular-nums font-semibold ${ex.completedThisWeek ? "text-zinc-700" : "text-zinc-400"}`}>
             {ex.sets}×{ex.reps}
           </span>
           {ex.weight && (
@@ -142,7 +144,7 @@ function ExerciseRow({ ex, onToggle, onNote, readonly, videoUrl, videoTitle }: {
           )}
         </div>
 
-        {ex.completed && !readonly && (
+        {ex.completedThisWeek && !readonly && (
           <span className="text-xs text-emerald-500 font-bold shrink-0">✓</span>
         )}
 
@@ -270,7 +272,7 @@ function RoutineCard({ routine, onToggle, onNote, readonly, clientName, videoMap
 }) {
   const hasDays = routine.days && routine.days.length > 0;
   const allExs  = hasDays ? routine.days.flatMap(d => d.exercises) : routine.exercises;
-  const done    = allExs.filter(e => e.completed).length;
+  const done    = allExs.filter(e => e.completedThisWeek).length;
   const total   = allExs.length;
   const p       = total > 0 ? Math.round((done / total) * 100) : 0;
 
@@ -325,7 +327,7 @@ function RoutineCard({ routine, onToggle, onNote, readonly, clientName, videoMap
                 </svg>
                 <span className="text-xs font-bold text-orange-400/80 uppercase tracking-widest">{day.name}</span>
                 <span className="text-xs text-zinc-600 ml-auto">
-                  {day.exercises.filter(e => e.completed).length}/{day.exercises.length}
+                  {day.exercises.filter(e => e.completedThisWeek).length}/{day.exercises.length}
                 </span>
               </div>
               <div className="divide-y divide-white/[0.04]">
@@ -399,11 +401,11 @@ export default function ClientDashboard() {
   async function handleToggle(exerciseId: string) {
     try {
       const res = await api.patch(`/routines/exercises/${exerciseId}/complete`);
-      const updated: Exercise = res.data.data;
+      const { id, completedThisWeek }: { id: string; completedThisWeek: boolean } = res.data.data;
 
       setRoutines(prev => {
         function patchEx(ex: Exercise) {
-          return ex.id === updated.id ? { ...ex, ...updated } : ex;
+          return ex.id === id ? { ...ex, completedThisWeek } : ex;
         }
         const next = prev.map(r => ({
           ...r,
@@ -413,7 +415,7 @@ export default function ClientDashboard() {
 
         const current = next[0];
         if (current) {
-          const allDone = getExercises(current).every(e => e.completed);
+          const allDone = getExercises(current).every(e => e.completedThisWeek);
 
           if (allDone && !sessionFiredRef.current) {
             sessionFiredRef.current = true;
@@ -477,10 +479,10 @@ export default function ClientDashboard() {
     return r.days && r.days.length > 0 ? r.days.flatMap(d => d.exercises) : r.exercises;
   }
   const current  = routines[0] ?? null;
-  const allDone  = routines.reduce((s, r) => s + getExercises(r).filter(e => e.completed).length, 0);
+  const allDone  = routines.reduce((s, r) => s + getExercises(r).filter(e => e.completedThisWeek).length, 0);
   const allTotal = routines.reduce((s, r) => s + getExercises(r).length, 0);
   const currentExs = current ? getExercises(current) : [];
-  const done  = currentExs.filter(e => e.completed).length;
+  const done  = currentExs.filter(e => e.completedThisWeek).length;
   const total = currentExs.length;
   const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
 
