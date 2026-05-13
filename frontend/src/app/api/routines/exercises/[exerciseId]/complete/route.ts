@@ -5,9 +5,26 @@ import { pusherServer } from "@/lib/pusher";
 
 export const dynamic = "force-dynamic";
 
+function getMondayOfCurrentWeek(): Date {
+  const d = new Date();
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 export async function PATCH(_req: NextRequest, { params }: { params: { exerciseId: string } }) {
   const { session, error } = await requireRole("CLIENT");
   if (error) return error;
+
+  const clientId = session!.user.profileId;
+  if (!clientId) {
+    return NextResponse.json(
+      { success: false, error: "Sesión inválida. Por favor, volvé a iniciar sesión." },
+      { status: 401 }
+    );
+  }
 
   const exercise = await prisma.exercise.findUnique({
     where: { id: params.exerciseId },
@@ -16,37 +33,55 @@ export async function PATCH(_req: NextRequest, { params }: { params: { exerciseI
   if (!exercise) {
     return NextResponse.json({ success: false, error: "Ejercicio no encontrado" }, { status: 404 });
   }
-  if (exercise.routine.clientId !== session!.user.profileId) {
+  if (exercise.routine.clientId !== clientId) {
     return NextResponse.json({ success: false, error: "Acceso denegado" }, { status: 403 });
   }
 
-  const updated = await prisma.exercise.update({
-    where: { id: exercise.id },
-    data: { completed: !exercise.completed },
+  const weekOf = getMondayOfCurrentWeek();
+
+  const existing = await prisma.exerciseLog.findUnique({
+    where: { exerciseId_clientId_weekOf: { exerciseId: exercise.id, clientId, weekOf } },
   });
 
-  // Notify trainer
-  await pusherServer.trigger(`private-user-${exercise.routine.client.trainerId}`, "exercise:completed", {
-    exerciseId: updated.id, exerciseName: updated.name,
-    routineId: exercise.routineId, clientId: exercise.routine.clientId, completed: updated.completed,
-  }).catch(() => {});
+  let completedThisWeek: boolean;
+  if (existing) {
+    await prisma.exerciseLog.delete({ where: { id: existing.id } });
+    completedThisWeek = false;
+  } else {
+    await prisma.exerciseLog.create({ data: { exerciseId: exercise.id, clientId, weekOf } });
+    completedThisWeek = true;
+  }
 
-  // Check if all exercises completed
-  const allExercises = await prisma.exercise.findMany({ where: { routineId: exercise.routineId } });
-  const sessionComplete = allExercises.every(ex => ex.id === updated.id ? updated.completed : ex.completed);
+  // Verificar si todos los ejercicios de la rutina están completos esta semana
+  const allExercises = await prisma.exercise.findMany({
+    where: { routineId: exercise.routineId },
+    select: { id: true },
+  });
+  const allExerciseIds = allExercises.map(e => e.id);
+  const weekLogs = await prisma.exerciseLog.findMany({
+    where: { clientId, weekOf, exerciseId: { in: allExerciseIds } },
+    select: { exerciseId: true },
+  });
+  const loggedIds = new Set(weekLogs.map(l => l.exerciseId));
+  const sessionComplete = allExerciseIds.every(id => loggedIds.has(id));
+
+  await pusherServer.trigger(
+    `private-user-${exercise.routine.client.trainerId}`,
+    "exercise:completed",
+    { exerciseId: exercise.id, exerciseName: exercise.name, routineId: exercise.routineId, clientId, completed: completedThisWeek }
+  ).catch(() => {});
 
   if (sessionComplete) {
     const client = await prisma.client.findUnique({
-      where: { id: exercise.routine.clientId },
+      where: { id: clientId },
       include: { user: { select: { name: true } } },
     });
-    await pusherServer.trigger(`private-user-${exercise.routine.client.trainerId}`, "session:completed", {
-      clientId: exercise.routine.clientId,
-      clientName: client?.user.name,
-      routineId: exercise.routineId,
-      message: `${client?.user.name} completó su sesión de hoy 💪`,
-    }).catch(() => {});
+    await pusherServer.trigger(
+      `private-user-${exercise.routine.client.trainerId}`,
+      "session:completed",
+      { clientId, clientName: client?.user.name, routineId: exercise.routineId, message: `${client?.user.name} completó su sesión de hoy 💪` }
+    ).catch(() => {});
   }
 
-  return NextResponse.json({ success: true, data: updated });
+  return NextResponse.json({ success: true, data: { id: exercise.id, completedThisWeek } });
 }

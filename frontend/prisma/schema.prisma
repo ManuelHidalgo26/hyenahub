@@ -124,6 +124,7 @@ model Client {
   routines        Routine[]
   diets           Diet[]
   weeklyFeedbacks WeeklyFeedback[]
+  exerciseLogs    ExerciseLog[]
 
   @@index([trainerId])
   @@map("clients")
@@ -169,15 +170,30 @@ model Exercise {
   weight     Float?
   notes      String?
   clientNote String?
-  completed  Boolean @default(false)
   order      Int     @default(0)
 
-  routine Routine     @relation(fields: [routineId], references: [id], onDelete: Cascade)
-  day     RoutineDay? @relation(fields: [dayId], references: [id], onDelete: SetNull)
+  routine Routine      @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  day     RoutineDay?  @relation(fields: [dayId], references: [id], onDelete: SetNull)
+  logs    ExerciseLog[]
 
   @@index([routineId])
   @@index([dayId])
   @@map("exercises")
+}
+
+model ExerciseLog {
+  id         String   @id @default(cuid())
+  exerciseId String
+  clientId   String
+  weekOf     DateTime
+  loggedAt   DateTime @default(now())
+
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  client   Client   @relation(fields: [clientId],   references: [id], onDelete: Cascade)
+
+  @@unique([exerciseId, clientId, weekOf])
+  @@index([clientId, weekOf])
+  @@map("exercise_logs")
 }
 
 model WeeklyFeedback {

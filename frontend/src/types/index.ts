@@ -29,7 +29,7 @@ export interface Exercise {
   reps: number;
   weight?: number;
   notes?: string;
-  completed: boolean;
+  completedThisWeek: boolean;
   order: number;
 }
 

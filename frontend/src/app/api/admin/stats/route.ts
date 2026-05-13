@@ -17,7 +17,7 @@ export async function GET() {
       prisma.trainer.count(),
       prisma.client.count(),
       prisma.routine.count(),
-      prisma.exercise.count({ where: { completed: true } }),
+      prisma.exerciseLog.count(),
       prisma.user.count({ where: { createdAt: { gte: last30Days } } }),
     ]);
 

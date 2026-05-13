@@ -14,7 +14,8 @@ export interface ExercisePDF {
   weight: number | null;
   notes: string | null;
   clientNote?: string | null;
-  completed: boolean;
+  completed?: boolean;
+  completedThisWeek?: boolean;
 }
 export interface RoutinePDF {
   weekStart: string;
@@ -98,7 +99,7 @@ export function downloadRoutinePDF(routine: RoutinePDF, clientName?: string) {
     y += 6;
   }
 
-  const done  = routine.exercises.filter(e => e.completed).length;
+  const done  = routine.exercises.filter(e => e.completedThisWeek ?? e.completed).length;
   const total = routine.exercises.length;
   const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
   doc.setFontSize(9);
