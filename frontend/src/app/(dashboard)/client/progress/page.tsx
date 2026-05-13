@@ -11,8 +11,8 @@ interface WeekStat {
   pct: number;
 }
 
-const W = 480;   // SVG width
-const H = 160;   // chart area height
+const W = 480;
+const H = 160;
 const PAD = { top: 16, right: 16, bottom: 32, left: 36 };
 
 function BarChart({ data }: { data: WeekStat[] }) {
@@ -31,7 +31,6 @@ function BarChart({ data }: { data: WeekStat[] }) {
 
   return (
     <svg viewBox={`0 0 ${W} ${H + PAD.top + PAD.bottom}`} className="w-full" style={{ maxHeight: 200 }}>
-      {/* Y-axis guide lines */}
       {[0, 25, 50, 75, 100].map(v => {
         const y = PAD.top + chartH - (v / 100) * chartH;
         return (
@@ -44,7 +43,6 @@ function BarChart({ data }: { data: WeekStat[] }) {
         );
       })}
 
-      {/* Bars */}
       {data.map((w, i) => {
         const x = PAD.left + i * step + (step - barW) / 2;
         const barH = Math.max(2, (w.pct / 100) * chartH);
@@ -52,23 +50,19 @@ function BarChart({ data }: { data: WeekStat[] }) {
         const done = w.pct === 100;
         return (
           <g key={w.weekStart}>
-            {/* Background bar */}
             <rect x={x} y={PAD.top} width={barW} height={chartH}
               rx={4} fill="rgba(255,255,255,0.03)" />
-            {/* Filled bar */}
             <rect x={x} y={y} width={barW} height={barH}
               rx={4}
               fill={done ? "url(#grad-done)" : "url(#grad-prog)"}
               opacity={0.9}
             />
-            {/* Percentage label */}
             {w.pct > 0 && (
               <text x={x + barW / 2} y={y - 4} textAnchor="middle"
                 fill={done ? "#34d399" : "#fb923c"} fontSize={8} fontWeight="bold">
                 {w.pct}%
               </text>
             )}
-            {/* X-axis label */}
             <text x={x + barW / 2} y={H + PAD.top + 16} textAnchor="middle"
               fill="rgba(255,255,255,0.25)" fontSize={8}>
               {formatWeek(w.weekStart)}
@@ -136,7 +130,6 @@ export default function ProgressPage() {
   return (
     <div className="min-h-full p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto">
 
-      {/* Header */}
       <div className="animate-fade-in mb-6">
         <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">Mi progreso</h1>
         <p className="text-zinc-500 text-sm mt-1">Historial de las últimas semanas</p>
@@ -164,14 +157,12 @@ export default function ProgressPage() {
       ) : (
         <div className="space-y-5 animate-slide-up">
 
-          {/* Stats pills */}
           <div className="grid grid-cols-3 gap-3">
             <StatCard value={`${data.length}`} label="Semanas" color="text-zinc-200" bg="bg-zinc-900" />
             <StatCard value={`${completed}`} label="Completadas" color="text-emerald-400" bg="bg-emerald-500/8" />
             <StatCard value={`${avgPct}%`} label="Promedio" color="text-orange-400" bg="bg-orange-500/8" />
           </div>
 
-          {/* Streak */}
           {streak > 0 && (
             <div className="bg-gradient-to-r from-orange-500/10 to-amber-500/5 border border-orange-500/20 rounded-2xl px-5 py-4 flex items-center gap-4">
               <div className="text-3xl">🔥</div>
@@ -182,7 +173,6 @@ export default function ProgressPage() {
             </div>
           )}
 
-          {/* Bar chart */}
           <div className="bg-zinc-900 border border-white/[0.06] rounded-2xl p-5">
             <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-4">Cumplimiento semanal</p>
             <BarChart data={data} />
@@ -192,7 +182,6 @@ export default function ProgressPage() {
             </div>
           </div>
 
-          {/* Weekly detail list */}
           <div className="bg-zinc-900 border border-white/[0.06] rounded-2xl overflow-hidden">
             <div className="px-5 py-3.5 border-b border-white/[0.04]">
               <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Detalle por semana</p>
