@@ -47,7 +47,7 @@ export default function TrainerChatPage() {
     if (!myId) return;
     const pusher = getPusherClient();
     const channel = pusher.subscribe(`private-user-${myId}`);
-    channel.bind("message.new", (msg: Message) => {
+    channel.bind("message:new", (msg: Message) => {
       const currentSelected = selectedRef.current;
       if (currentSelected && (msg.senderId === currentSelected.user.id || msg.senderId === myId)) {
         setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);

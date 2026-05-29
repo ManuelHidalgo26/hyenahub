@@ -57,7 +57,7 @@ export default function ClientChatPage() {
     if (!myId) return;
     const pusher = getPusherClient();
     const channel = pusher.subscribe(`private-user-${myId}`);
-    channel.bind("message.new", (msg: Message) => {
+    channel.bind("message:new", (msg: Message) => {
       setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
     });
     return () => { pusher.unsubscribe(`private-user-${myId}`); };
