@@ -5,6 +5,15 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+function getMondayOf(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 export async function GET(_req: NextRequest, { params }: { params: { clientId: string } }) {
   const { session, error } = await requireRole("TRAINER");
   if (error) return error;
@@ -28,7 +37,31 @@ export async function GET(_req: NextRequest, { params }: { params: { clientId: s
     return NextResponse.json({ success: false, error: "Cliente no encontrado" }, { status: 404 });
   }
 
-  return NextResponse.json({ success: true, data: client });
+  // Enriquecer cada ejercicio con `completed` calculado desde ExerciseLog (fuente única),
+  // usando el lunes de la semana de cada rutina — mismo criterio que /api/routines/client/[clientId].
+  const allLogs = await prisma.exerciseLog.findMany({
+    where: { clientId: params.clientId },
+    select: { exerciseId: true, weekOf: true },
+  });
+  const logsByWeek = new Map<string, Set<string>>();
+  for (const log of allLogs) {
+    const key = log.weekOf.toISOString();
+    if (!logsByWeek.has(key)) logsByWeek.set(key, new Set());
+    logsByWeek.get(key)!.add(log.exerciseId);
+  }
+
+  const enrichedRoutines = client.routines.map(r => {
+    const weekKey = getMondayOf(r.weekStart).toISOString();
+    const loggedIds = logsByWeek.get(weekKey) ?? new Set<string>();
+    const enrichEx = (ex: { id: string; [key: string]: unknown }) => ({ ...ex, completed: loggedIds.has(ex.id) });
+    return {
+      ...r,
+      exercises: r.exercises.map(enrichEx),
+      days: r.days.map(d => ({ ...d, exercises: d.exercises.map(enrichEx) })),
+    };
+  });
+
+  return NextResponse.json({ success: true, data: { ...client, routines: enrichedRoutines } });
 }
 
 const updateSchema = z.object({
