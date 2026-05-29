@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,15 @@ const RegisterSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  // Rate limit: 5 registros por IP cada 10 minutos.
+  const rl = checkRateLimit(`register:${getClientIp(req)}`, 5, 10 * 60 * 1000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { success: false, error: "Demasiados intentos. Intentá de nuevo más tarde." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+    );
+  }
+
   const body = await req.json().catch(() => null);
   const result = RegisterSchema.safeParse(body);
   if (!result.success) {

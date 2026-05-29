@@ -3,12 +3,22 @@ import { randomInt } from "crypto";
 import bcrypt from "bcryptjs";
 import { requireRole } from "@/lib/server-auth";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(_req: NextRequest, { params }: { params: { clientId: string } }) {
   const { session, error } = await requireRole("TRAINER");
   if (error) return error;
+
+  // Rate limit: 20 reseteos por entrenador cada 15 minutos.
+  const rl = checkRateLimit(`reset-pw:${session!.user.id}`, 20, 15 * 60 * 1000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { success: false, error: "Demasiados intentos. Intentá de nuevo más tarde." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+    );
+  }
 
   const client = await prisma.client.findFirst({
     where: { id: params.clientId, trainerId: session!.user.profileId },
