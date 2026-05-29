@@ -2,20 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireRole } from "@/lib/server-auth";
 import { prisma } from "@/lib/prisma";
+import { mealSchema } from "@/lib/schemas";
 
 export const dynamic = "force-dynamic";
-
-const mealSchema = z.object({
-  name:     z.string().min(1),
-  time:     z.string().optional(),
-  foods:    z.string().min(1),
-  calories: z.number().int().optional(),
-  protein:  z.number().int().optional(),
-  carbs:    z.number().int().optional(),
-  fat:      z.number().int().optional(),
-  notes:    z.string().optional(),
-  order:    z.number().int().optional(),
-});
 
 const putSchema = z.object({
   name:        z.string().min(1).optional(),

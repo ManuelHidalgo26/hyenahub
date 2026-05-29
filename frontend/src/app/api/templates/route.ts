@@ -2,17 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireRole } from "@/lib/server-auth";
 import { prisma } from "@/lib/prisma";
+import { exerciseSchema } from "@/lib/schemas";
 
 export const dynamic = "force-dynamic";
-
-const exerciseSchema = z.object({
-  name:   z.string().min(1),
-  sets:   z.number().int().positive(),
-  reps:   z.number().int().positive(),
-  weight: z.number().optional(),
-  notes:  z.string().optional(),
-  order:  z.number().int().optional(),
-});
 
 const createSchema = z.object({
   name:          z.string().min(1),

@@ -2,17 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/lib/server-auth";
 import { prisma } from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
+import { getMondayOfCurrentWeek } from "@/lib/date-utils";
 
 export const dynamic = "force-dynamic";
-
-function getMondayOfCurrentWeek(): Date {
-  const d = new Date();
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
 
 export async function PATCH(_req: NextRequest, { params }: { params: { exerciseId: string } }) {
   const { session, error } = await requireRole("CLIENT");

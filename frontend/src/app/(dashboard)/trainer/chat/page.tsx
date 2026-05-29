@@ -11,7 +11,7 @@ interface Message { id: string; senderId: string; body: string; createdAt: strin
 
 function Avatar({ name, size = 8 }: { name: string; size?: number }) {
   return (
-    <div className={`w-${size} h-${size} rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white font-black text-xs shrink-0`}>
+    <div className="rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white font-black text-xs shrink-0" style={{ width: `${size * 0.25}rem`, height: `${size * 0.25}rem` }}>
       {name.charAt(0).toUpperCase()}
     </div>
   );

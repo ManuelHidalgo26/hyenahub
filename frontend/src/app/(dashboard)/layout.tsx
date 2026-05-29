@@ -75,7 +75,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   const AvatarDisplay = ({ size = 8 }: { size?: number }) => (
-    <div className={`w-${size} h-${size} rounded-full overflow-hidden ring-1 ring-orange-500/30 shrink-0`}>
+    <div className="rounded-full overflow-hidden ring-1 ring-orange-500/30 shrink-0" style={{ width: `${size * 0.25}rem`, height: `${size * 0.25}rem` }}>
       <div className="w-full h-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white font-black" style={{ fontSize: size < 9 ? "0.65rem" : "0.75rem" }}>
         {initial}
       </div>
@@ -237,30 +237,6 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 }
 
 /* ─── Icons ──────────────────────────────────────────── */
-function HyenaIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 32 32" fill="currentColor" stroke="none">
-      {/* Body — withers high (front-left), rump lower (right) */}
-      <path d="M6 18 C5 15 5 11 6 10 C7 7 10 6 12 6 C16 6 19 9 22 12 C24 14 26 19 25 23 L8 23 C6.5 23 5.5 21 6 18 Z" />
-      {/* Head */}
-      <ellipse cx="5" cy="13.5" rx="4" ry="3.5" />
-      {/* Snout */}
-      <ellipse cx="1.5" cy="13.5" rx="1.5" ry="1.2" />
-      {/* Ear front */}
-      <polygon points="4.5,10 6,7 7.5,10" />
-      {/* Ear back */}
-      <polygon points="7,9.5 8.5,6.5 10,9.5" />
-      {/* Front legs */}
-      <rect x="8" y="23" width="2.5" height="6" rx="0.8" />
-      <rect x="12" y="23" width="2.5" height="6" rx="0.8" />
-      {/* Back legs */}
-      <rect x="18" y="23" width="2.5" height="6" rx="0.8" />
-      <rect x="22" y="23" width="2.5" height="6" rx="0.8" />
-      {/* Tail */}
-      <path d="M23 14 Q26 13 27.5 11.5 Q28 10 27 10" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" />
-    </svg>
-  );
-}
 function GridIcon({ className }: { className?: string }) {
   return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>;
 }

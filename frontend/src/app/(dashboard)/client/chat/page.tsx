@@ -12,7 +12,7 @@ interface TrainerInfo { user: { id: string; name: string; avatar: string | null 
 
 function Avatar({ name, avatar, size = 8 }: { name: string; avatar?: string | null; size?: number }) {
   return (
-    <div className={`w-${size} h-${size} rounded-full overflow-hidden shrink-0`}>
+    <div className="rounded-full overflow-hidden shrink-0" style={{ width: `${size * 0.25}rem`, height: `${size * 0.25}rem` }}>
       {avatar ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={avatar} alt={name} className="w-full h-full object-cover" />
