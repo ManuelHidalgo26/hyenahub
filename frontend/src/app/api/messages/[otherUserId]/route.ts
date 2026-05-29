@@ -64,8 +64,10 @@ export async function POST(
     data: { senderId: myId, receiverId: otherId, body: parsed.data.body },
   });
 
+  // Payload = raw message fields (consumed by chat pages) + senderName (for notification toast)
   await pusherServer.trigger(`private-user-${otherId}`, "message:new", {
-    message,
+    ...message,
+    senderName: session!.user.name,
   }).catch(() => {});
 
   return NextResponse.json({ success: true, data: message }, { status: 201 });

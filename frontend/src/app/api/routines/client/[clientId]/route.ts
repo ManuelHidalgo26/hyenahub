@@ -1,17 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/lib/server-auth";
 import { prisma } from "@/lib/prisma";
+import { getMondayOf } from "@/lib/date-utils";
 
 export const dynamic = "force-dynamic";
-
-function getMondayOf(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
 
 export async function GET(_req: NextRequest, { params }: { params: { clientId: string } }) {
   const { session, error } = await requireRole("TRAINER");

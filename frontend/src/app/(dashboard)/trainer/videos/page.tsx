@@ -2,29 +2,11 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
+import { getYouTubeId, getVimeoId, getGoogleDriveId, isDirectVideo } from "@/lib/video-utils";
 
 interface TrainerVideo {
   id: string; title: string; description: string | null;
   videoUrl: string; exercise: string | null; createdAt: string;
-}
-
-function getYouTubeId(url: string): string | null {
-  const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-  return m ? m[1] : null;
-}
-
-function getVimeoId(url: string): string | null {
-  const m = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-  return m ? m[1] : null;
-}
-
-function getGoogleDriveId(url: string): string | null {
-  const m = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
-  return m ? m[1] : null;
-}
-
-function isDirectVideo(url: string): boolean {
-  return /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url);
 }
 
 function VideoEmbed({ url }: { url: string }) {

@@ -1,17 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/server-auth";
 import { prisma } from "@/lib/prisma";
+import { getMondayOfCurrentWeek } from "@/lib/date-utils";
 
 export const dynamic = "force-dynamic";
-
-function getMondayOfCurrentWeek(): Date {
-  const d = new Date();
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
 
 export async function GET() {
   const { session, error } = await requireRole("CLIENT");

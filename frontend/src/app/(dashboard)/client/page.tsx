@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import api from "@/lib/api";
 import { useNotifications } from "@/components/NotificationProvider";
 import { ErrorBanner } from "@/components/ErrorBanner";
+import { getYouTubeId } from "@/lib/video-utils";
 
 /* ─── Types ────────────────────────────────────────────────────────────────────────────── */
 interface Exercise {
@@ -273,10 +274,10 @@ function ExerciseRow({ ex, onToggle, onNote, readonly, videoUrl, videoTitle }: {
 }
 
 function VideoPlayer({ url }: { url: string }) {
-  const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-  if (m) {
+  const ytId = getYouTubeId(url);
+  if (ytId) {
     return (
-      <iframe src={`https://www.youtube.com/embed/${m[1]}`}
+      <iframe src={`https://www.youtube.com/embed/${ytId}`}
         className="w-full aspect-video rounded-xl"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
         allowFullScreen />

@@ -1,0 +1,13 @@
+{
+  "name": "HyenaHub",
+  "short_name": "HyenaHub",
+  "description": "Plataforma de gestión para entrenadores personales y sus clientes",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "icons": [
+    { "src": "/hyena-icon.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" },
+    { "src": "/hyena-icon.png", "sizes": "1024x1024", "type": "image/png", "purpose": "maskable" }
+  ]
+}

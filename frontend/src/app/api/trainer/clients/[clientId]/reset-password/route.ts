@@ -1,13 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomInt } from "crypto";
 import bcrypt from "bcryptjs";
 import { requireRole } from "@/lib/server-auth";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(_req: NextRequest, { params }: { params: { clientId: string } }) {
   const { session, error } = await requireRole("TRAINER");
   if (error) return error;
+
+  // Rate limit: 20 reseteos por entrenador cada 15 minutos.
+  const rl = checkRateLimit(`reset-pw:${session!.user.id}`, 20, 15 * 60 * 1000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { success: false, error: "Demasiados intentos. Intentá de nuevo más tarde." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+    );
+  }
 
   const client = await prisma.client.findFirst({
     where: { id: params.clientId, trainerId: session!.user.profileId },
@@ -17,9 +28,11 @@ export async function POST(_req: NextRequest, { params }: { params: { clientId: 
     return NextResponse.json({ success: false, error: "Cliente no encontrado o sin acceso" }, { status: 403 });
   }
 
+  // Generación criptográficamente segura (crypto.randomInt) manteniendo un
+  // formato memorable (palabra + 4 dígitos) para que el entrenador lo comparta.
   const words = ["Entreno", "Fuerza", "Rutina", "Gym", "Salud", "Fit", "Sport", "Power"];
-  const word = words[Math.floor(Math.random() * words.length)];
-  const nums = String(Math.floor(1000 + Math.random() * 9000));
+  const word = words[randomInt(words.length)];
+  const nums = String(randomInt(1000, 10000));
   const tempPassword = `${word}${nums}`;
 
   await prisma.user.update({

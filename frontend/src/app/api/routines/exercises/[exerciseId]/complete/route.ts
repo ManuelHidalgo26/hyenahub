@@ -2,17 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/lib/server-auth";
 import { prisma } from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
+import { getMondayOfCurrentWeek } from "@/lib/date-utils";
 
 export const dynamic = "force-dynamic";
-
-function getMondayOfCurrentWeek(): Date {
-  const d = new Date();
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
 
 export async function PATCH(_req: NextRequest, { params }: { params: { exerciseId: string } }) {
   const { session, error } = await requireRole("CLIENT");
@@ -28,7 +20,7 @@ export async function PATCH(_req: NextRequest, { params }: { params: { exerciseI
 
   const exercise = await prisma.exercise.findUnique({
     where: { id: params.exerciseId },
-    include: { routine: { include: { client: true } } },
+    include: { routine: { include: { client: { include: { trainer: true } } } } },
   });
   if (!exercise) {
     return NextResponse.json({ success: false, error: "Ejercicio no encontrado" }, { status: 404 });
@@ -65,8 +57,11 @@ export async function PATCH(_req: NextRequest, { params }: { params: { exerciseI
   const loggedIds = new Set(weekLogs.map(l => l.exerciseId));
   const sessionComplete = allExerciseIds.every(id => loggedIds.has(id));
 
+  // Notify the trainer on their User channel (private-user-<userId>), not the Trainer.id
+  const trainerUserId = exercise.routine.client.trainer.userId;
+
   await pusherServer.trigger(
-    `private-user-${exercise.routine.client.trainerId}`,
+    `private-user-${trainerUserId}`,
     "exercise:completed",
     { exerciseId: exercise.id, exerciseName: exercise.name, routineId: exercise.routineId, clientId, completed: completedThisWeek }
   ).catch(() => {});
@@ -77,7 +72,7 @@ export async function PATCH(_req: NextRequest, { params }: { params: { exerciseI
       include: { user: { select: { name: true } } },
     });
     await pusherServer.trigger(
-      `private-user-${exercise.routine.client.trainerId}`,
+      `private-user-${trainerUserId}`,
       "session:completed",
       { clientId, clientName: client?.user.name, routineId: exercise.routineId, message: `${client?.user.name} completó su sesión de hoy 💪` }
     ).catch(() => {});

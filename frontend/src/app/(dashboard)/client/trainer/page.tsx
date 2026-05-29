@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
+import { getYouTubeId } from "@/lib/video-utils";
 
 interface TrainerVideo {
   id: string; title: string; description: string | null;
@@ -11,11 +12,6 @@ interface TrainerInfo {
   id: string; bio: string | null; specialty: string | null;
   user: { name: string; email: string; avatar: string | null };
   videos: TrainerVideo[];
-}
-
-function getYouTubeId(url: string): string | null {
-  const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-  return m ? m[1] : null;
 }
 
 export default function MyTrainerPage() {

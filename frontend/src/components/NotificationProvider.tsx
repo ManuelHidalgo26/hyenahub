@@ -91,7 +91,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const channel = pusher.subscribe(`private-user-${userId}`);
 
     // New message from another user
-    channel.bind("message.new", (data: { senderId: string; senderName?: string; body: string }) => {
+    channel.bind("message:new", (data: { senderId: string; senderName?: string; body: string }) => {
       if (data.senderId === userId) return; // ignore own messages
       const onChatPage = pathnameRef.current?.includes("/chat");
       // Only increment badge when not already reading the chat
@@ -114,7 +114,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     });
 
     // Trainer receives this when a client completes their full session
-    channel.bind("session.completed", (data: { clientName: string; message: string }) => {
+    channel.bind("session:completed", (data: { clientName: string; message: string }) => {
       addToast({
         type: "fire",
         title: "¡Sesión completada! 🔥",
@@ -123,7 +123,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     });
 
     // Trainer receives individual exercise completions
-    channel.bind("exercise.completed", (_data: { exerciseId: string }) => {
+    channel.bind("exercise:completed", (_data: { exerciseId: string }) => {
       // we don't show toasts per exercise — only per session
     });
 
