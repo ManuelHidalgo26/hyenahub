@@ -27,8 +27,11 @@ const IS_PROD = process.env.NODE_ENV === "production";
 function forceReLogin(req: NextRequest) {
   const res = NextResponse.redirect(new URL("/login", req.url));
   for (const base of BASE_COOKIE_NAMES) {
+    // El prefijo "__Secure-" obliga a que el Set-Cookie lleve el atributo
+    // Secure; si no, el navegador descarta la operación (incluido el borrado).
+    const secure = base.startsWith("__Secure-");
     for (const name of COOKIE_VARIANTS(base)) {
-      res.cookies.set(name, "", { path: "/", maxAge: 0 });
+      res.cookies.set(name, "", { path: "/", maxAge: 0, secure });
     }
   }
   return res;
