@@ -5,7 +5,11 @@
  * que la app abra sin conexión y muestre la última rutina / entrenador vistos.
  * NO intercepta escrituras (POST/PATCH/DELETE): esas siguen yendo a la red.
  */
-const CACHE_VERSION = "hyenahub-v1";
+// Subir esta versión invalida las cachés viejas en el `activate` de abajo. Es
+// imprescindible bumpearla al desplegar fixes de auth/navegación: si no, los
+// clientes que ya instalaron la PWA siguen sirviendo el código viejo cacheado
+// (cache-first de /_next/) y no reciben la corrección.
+const CACHE_VERSION = "hyenahub-v2";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const PAGES_CACHE = `${CACHE_VERSION}-pages`;
 const API_CACHE = `${CACHE_VERSION}-api`;
