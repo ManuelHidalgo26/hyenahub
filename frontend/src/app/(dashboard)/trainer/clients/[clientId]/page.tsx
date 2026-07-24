@@ -14,6 +14,7 @@ interface ClientDetail {
 interface Exercise {
   id: string; name: string; sets: number; reps: number;
   weight: number | null; notes: string | null; clientNote: string | null;
+  clientWeight: number | null;
   completed: boolean; order: number; dayId: string | null;
 }
 interface RoutineDay { id: string; name: string; order: number; exercises: Exercise[]; }
@@ -1025,7 +1026,10 @@ export default function ClientDetailPage() {
                             <div key={ex.id} className={`flex items-center gap-3 px-4 sm:px-5 py-3 transition-colors ${ex.completed ? "bg-emerald-500/5" : ""}`}>
                               <span className={`w-2 h-2 rounded-full shrink-0 ${ex.completed ? "bg-emerald-400" : "bg-zinc-700"}`} />
                               <span className={`flex-1 text-sm ${ex.completed ? "text-emerald-400/70 line-through decoration-emerald-600" : "text-zinc-300"}`}>{ex.name}</span>
-                              <span className="text-xs text-zinc-600 tabular-nums">{ex.sets}×{ex.reps}{ex.weight ? ` · ${ex.weight}kg` : ""}</span>
+                              <span className="text-xs text-zinc-600 tabular-nums">
+                                {ex.sets}×{ex.reps}{ex.weight ? ` · ${ex.weight}kg` : ""}
+                                {ex.clientWeight != null && <span className="text-orange-400/70"> · usó {ex.clientWeight}kg</span>}
+                              </span>
                             </div>
                           ))}
                         </div>
@@ -1037,7 +1041,10 @@ export default function ClientDetailPage() {
                         <div key={ex.id} className={`flex items-center gap-3 px-4 sm:px-5 py-3 transition-colors ${ex.completed ? "bg-emerald-500/5" : ""}`}>
                           <span className={`w-2 h-2 rounded-full shrink-0 ${ex.completed ? "bg-emerald-400" : "bg-zinc-700"}`} />
                           <span className={`flex-1 text-sm ${ex.completed ? "text-emerald-400/70 line-through decoration-emerald-600" : "text-zinc-300"}`}>{ex.name}</span>
-                          <span className="text-xs text-zinc-600 tabular-nums">{ex.sets}×{ex.reps}{ex.weight ? ` · ${ex.weight}kg` : ""}</span>
+                          <span className="text-xs text-zinc-600 tabular-nums">
+                            {ex.sets}×{ex.reps}{ex.weight ? ` · ${ex.weight}kg` : ""}
+                            {ex.clientWeight != null && <span className="text-orange-400/70"> · usó {ex.clientWeight}kg</span>}
+                          </span>
                         </div>
                       ))}
                     </div>

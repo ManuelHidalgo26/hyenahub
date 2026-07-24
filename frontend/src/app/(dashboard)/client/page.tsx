@@ -11,6 +11,7 @@ import { getYouTubeId } from "@/lib/video-utils";
 interface Exercise {
   id: string; name: string; sets: number; reps: number;
   weight: number | null; notes: string | null; clientNote: string | null;
+  clientWeight: number | null;
   completedThisWeek: boolean; order: number; dayId: string | null;
 }
 interface RoutineDay { id: string; name: string; order: number; exercises: Exercise[]; }
@@ -54,10 +55,11 @@ function ProgressRing({ pct }: { pct: number }) {
 }
 
 /* ─── Exercise Row ──────────────────────────────────────────────────────────────────────── */
-function ExerciseRow({ ex, onToggle, onNote, readonly, videoUrl, videoTitle }: {
+function ExerciseRow({ ex, onToggle, onNote, onWeight, readonly, videoUrl, videoTitle }: {
   ex: Exercise;
   onToggle?: (id: string) => Promise<void>;
   onNote?: (id: string, note: string) => Promise<void>;
+  onWeight?: (id: string, weight: string) => Promise<void>;
   readonly?: boolean;
   videoUrl?: string;
   videoTitle?: string;
@@ -68,8 +70,26 @@ function ExerciseRow({ ex, onToggle, onNote, readonly, videoUrl, videoTitle }: {
   const [savingNote,    setSavingNote]    = useState(false);
   const [showVideo,     setShowVideo]     = useState(false);
   const [confirmUnmark, setConfirmUnmark] = useState(false);
+  const [weightVal,     setWeightVal]     = useState(ex.clientWeight != null ? String(ex.clientWeight) : "");
+  const [savingWeight,  setSavingWeight]  = useState(false);
 
   useEffect(() => { setNoteVal(ex.clientNote ?? ""); }, [ex.clientNote]);
+  useEffect(() => { setWeightVal(ex.clientWeight != null ? String(ex.clientWeight) : ""); }, [ex.clientWeight]);
+
+  async function handleWeightSave() {
+    if (!onWeight) return;
+    const raw    = weightVal.trim();
+    const parsed = raw === "" ? null : Number(raw);
+    const norm   = parsed != null && Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+    setWeightVal(norm != null ? String(norm) : "");
+    if (norm === ex.clientWeight) return;
+    setSavingWeight(true);
+    try {
+      await onWeight(ex.id, norm != null ? String(norm) : "");
+    } finally {
+      setSavingWeight(false);
+    }
+  }
 
   async function handleToggle(e: React.MouseEvent) {
     if (readonly || !onToggle) return;
@@ -152,10 +172,38 @@ function ExerciseRow({ ex, onToggle, onNote, readonly, videoUrl, videoTitle }: {
           <span className={`text-xs tabular-nums font-semibold ${ex.completedThisWeek ? "text-zinc-700" : "text-zinc-400"}`}>
             {ex.sets}×{ex.reps}
           </span>
-          {ex.weight && (
+          {/* En readonly (semanas pasadas) los pesos van como texto */}
+          {readonly && ex.weight != null && (
             <span className="text-xs text-zinc-700 ml-1">· {ex.weight}kg</span>
           )}
+          {readonly && ex.clientWeight != null && (
+            <span className="text-xs text-orange-400/60 ml-1">· usé {ex.clientWeight}kg</span>
+          )}
         </div>
+
+        {/* Peso usado — editable por el cliente */}
+        {!readonly && onWeight && (
+          <div className="shrink-0 flex items-center gap-1" onClick={e => e.stopPropagation()}>
+            <input
+              type="number"
+              inputMode="decimal"
+              step={0.5}
+              min={0}
+              value={weightVal}
+              onChange={e => setWeightVal(e.target.value)}
+              onBlur={handleWeightSave}
+              onKeyDown={e => {
+                e.stopPropagation();
+                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+              }}
+              placeholder={ex.weight != null ? String(ex.weight) : "—"}
+              disabled={savingWeight}
+              title="Peso que usaste"
+              className="w-14 bg-zinc-800 text-zinc-200 text-xs text-right tabular-nums rounded-lg px-2 py-1 border border-white/[0.06] focus:outline-none focus:border-orange-500/40 placeholder:text-zinc-700 disabled:opacity-50"
+            />
+            <span className="text-xs text-zinc-600">kg</span>
+          </div>
+        )}
 
         {ex.completedThisWeek && !readonly && (
           <span className="text-xs text-emerald-500 font-bold shrink-0">✓</span>
@@ -287,10 +335,11 @@ function VideoPlayer({ url }: { url: string }) {
 }
 
 /* ─── Routine Card ───────────────────────────────────────────────────────────────────────────── */
-function RoutineCard({ routine, onToggle, onNote, readonly, clientName, videoMap, onFeedbackSaved, onToggleVisibility }: {
+function RoutineCard({ routine, onToggle, onNote, onWeight, readonly, clientName, videoMap, onFeedbackSaved, onToggleVisibility }: {
   routine: Routine;
   onToggle?: (id: string) => Promise<void>;
   onNote?: (id: string, note: string) => Promise<void>;
+  onWeight?: (id: string, weight: string) => Promise<void>;
   readonly?: boolean;
   clientName?: string;
   videoMap?: Record<string, TrainerVideo>;
@@ -375,7 +424,7 @@ function RoutineCard({ routine, onToggle, onNote, readonly, clientName, videoMap
                 {day.exercises.map(ex => {
                   const vid = videoMap?.[ex.name.toLowerCase()];
                   return (
-                    <ExerciseRow key={ex.id} ex={ex} onToggle={onToggle} onNote={onNote}
+                    <ExerciseRow key={ex.id} ex={ex} onToggle={onToggle} onNote={onNote} onWeight={onWeight}
                       readonly={readonly} videoUrl={vid?.videoUrl} videoTitle={vid?.title} />
                   );
                 })}
@@ -388,7 +437,7 @@ function RoutineCard({ routine, onToggle, onNote, readonly, clientName, videoMap
           {routine.exercises.map(ex => {
             const vid = videoMap?.[ex.name.toLowerCase()];
             return (
-              <ExerciseRow key={ex.id} ex={ex} onToggle={onToggle} onNote={onNote}
+              <ExerciseRow key={ex.id} ex={ex} onToggle={onToggle} onNote={onNote} onWeight={onWeight}
                 readonly={readonly} videoUrl={vid?.videoUrl} videoTitle={vid?.title} />
             );
           })}
@@ -527,6 +576,40 @@ export default function ClientDashboard() {
     }
   }
 
+  async function handleWeight(exerciseId: string, weight: string) {
+    try {
+      const res = await api.patch(`/routines/exercises/${exerciseId}/weight`, { weight });
+      const updated: Exercise = res.data.data;
+      setRoutines(prev =>
+        prev.map(r => ({
+          ...r,
+          exercises: r.exercises.map(ex =>
+            ex.id === updated.id ? { ...ex, clientWeight: updated.clientWeight } : ex
+          ),
+          days: r.days.map(d => ({
+            ...d,
+            exercises: d.exercises.map(ex =>
+              ex.id === updated.id ? { ...ex, clientWeight: updated.clientWeight } : ex
+            ),
+          })),
+        }))
+      );
+      addToast({
+        type: updated.clientWeight != null ? "success" : "info",
+        title: updated.clientWeight != null ? "Peso registrado" : "Peso borrado",
+        message: updated.clientWeight != null
+          ? `Anotaste ${updated.clientWeight}kg en este ejercicio.`
+          : "El peso fue borrado correctamente.",
+      });
+    } catch {
+      addToast({
+        type: "warning",
+        title: "Error al guardar",
+        message: "No se pudo guardar el peso. Intentá de nuevo.",
+      });
+    }
+  }
+
   function getExercises(r: Routine) {
     return r.days && r.days.length > 0 ? r.days.flatMap(d => d.exercises) : r.exercises;
   }
@@ -594,6 +677,7 @@ export default function ClientDashboard() {
             routine={routine}
             onToggle={handleToggle}
             onNote={handleNote}
+            onWeight={handleWeight}
             readonly={false}
             clientName={session?.user?.name}
             videoMap={videoMap}

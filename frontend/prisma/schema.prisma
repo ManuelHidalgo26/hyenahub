@@ -162,16 +162,17 @@ model RoutineDay {
 }
 
 model Exercise {
-  id         String  @id @default(cuid())
-  routineId  String
-  dayId      String?
-  name       String
-  sets       Int
-  reps       Int
-  weight     Float?
-  notes      String?
-  clientNote String?
-  order      Int     @default(0)
+  id           String  @id @default(cuid())
+  routineId    String
+  dayId        String?
+  name         String
+  sets         Int
+  reps         Int
+  weight       Float?
+  notes        String?
+  clientNote   String?
+  clientWeight Float?
+  order        Int     @default(0)
 
   routine Routine      @relation(fields: [routineId], references: [id], onDelete: Cascade)
   day     RoutineDay?  @relation(fields: [dayId], references: [id], onDelete: SetNull)
